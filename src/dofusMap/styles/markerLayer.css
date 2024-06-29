@@ -1,0 +1,46 @@
+/* Style for the popups */
+
+.custom-popup-style .leaflet-popup-content-wrapper {
+    border-radius: 6px;                        /* Rounded corners */
+    box-shadow: 0 3px 14px rgba(0, 0, 0, 0.4);  /* Subtle shadow for 3D effect */
+    margin: 0px;                                  /* No external margins */
+    padding: 8px;                               /* Reduced padding */
+    max-width: 150px;                           /* Control the width to be no more than 150px */
+    user-select: none; /* This will disable text selection for the entire map */
+    -webkit-user-select: none; /* Safari prefix */
+    -moz-user-select: none; /* Firefox prefix */
+    -ms-user-select: none; /* Internet Explorer/Edge prefix */
+}
+
+.custom-popup-style .leaflet-popup-content {
+    font-size: 9px;                             /* Set the font size for the content inside the popup */
+    color: #333;                                /* Dark grey text color for readability */
+    text-align: center;                         /* Center the text */
+    white-space: normal;                        /* Allow text to wrap */
+    overflow: hidden;                           /* Hide overflow */
+    text-overflow: ellipsis;                    /* Add ellipsis if text is too long */
+    -webkit-line-clamp: 2;                      /* Limit text to two lines */
+    -webkit-box-orient: vertical;               /* Set box orientation to vertical */
+    padding: 0px;
+    margin: 0px;
+}
+
+.custom-popup-style .leaflet-popup-tip {
+    background: transparent;                    /* Make the tip's background transparent */
+    border-top-color: #0078A8;                  /* Same color as the popup border for the tip */
+}
+
+.custom-popup-style .leaflet-popup-content-wrapper {
+    background-color: #f0f0f0;                  /* Light grey background */
+    border-color: #ff0000;                      /* Red border */
+}
+
+.custom-popup-style .leaflet-popup-tip {
+    border-top-color: #ff0000;                  /* Red tip */
+}
+
+.dofusMap-marker:hover {
+    transform: scale(1.1);
+    transition: transform 0.3s ease-in-out;
+    z-index: 1200;
+}

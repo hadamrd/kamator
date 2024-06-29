@@ -1,0 +1,8 @@
+.mouse-tooltip {
+    white-space: nowrap;
+    padding: 5px;
+    font-weight: bold;
+    z-index: 3000;
+    background: rgba(15, 14, 14, 0.8); 
+    border: 1px solid #ddd;
+}

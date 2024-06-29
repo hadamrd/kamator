@@ -1,0 +1,51 @@
+.resource-legend {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr); /* Two columns of equal width */
+    gap: 10px; /* Space between grid items */
+    padding: 10px;
+    background-color: rgba(15, 14, 14, 0.658); /* Dark semi-transparent background */
+    border: 1px solid #999;
+    border-radius: 5px;
+    box-shadow: 0 1px 5px rgba(0, 0, 0, 0.4);
+    max-height: 200px;
+    overflow-y: auto;
+    font-size: 12px; /* Smaller font size */
+    color: #fff; /* Lighter text for better readability on dark background */
+}
+
+
+/* Styling the scrollbar */
+.resource-legend::-webkit-scrollbar {
+    width: 8px; /* Scrollbar width */
+    background-color: rgba(0, 0, 0, 0.2); /* Scrollbar track color */
+}
+
+.resource-legend::-webkit-scrollbar-thumb {
+    background-color: darkgrey; /* Scrollbar handle color */
+    border-radius: 10px; /* Rounded corners for the scrollbar handle */
+    border: 2px solid rgba(15, 14, 14, 0.658); /* Border to match the legend background */
+}
+
+.legend-title {
+    font-weight: bold;
+    margin-bottom: 8px;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 5px;
+}
+
+.legend-icon {
+    width: 20px; /* Smaller icons */
+    height: 20px;
+    margin-right: 5px;
+}
+
+.legend-text {
+    flex-grow: 1;
+    overflow: hidden; /* Prevents text from breaking the layout */
+    text-overflow: ellipsis; /* Adds an ellipsis to overflowed text */
+    white-space: nowrap; /* Keeps the text on a single line */
+}

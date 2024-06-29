@@ -1,0 +1,37 @@
+:root {
+    --mark-known-maps: block;
+}
+
+.map-border-highlight {
+    position: absolute;
+    pointer-events: none;
+    background-color: rgba(143, 99, 99, 0.062);
+    border: 1px solid red;
+}
+
+.map-border-selected {
+    position: absolute;
+    pointer-events: none;
+    background-color: rgba(117, 73, 73, 0.767);
+    border: 1px solid rgb(25, 0, 255);
+}
+
+.map-border-selected .icon-container {
+    position: relative;
+    width: 100%; /* Ensure the container fills the icon */
+    height: 100%; /* Ensure the container fills the icon */
+}
+
+.map-border-selected .coordinates-label {
+    position: absolute;
+    top: 0; /* Align to the top */
+    right: 0; /* Align to the right */
+    padding: 2px 5px; /* Some padding around the text */
+    background-color: rgba(0, 0, 0, 0.6); /* Dark background for the text */
+    font-size: 10px; /* Appropriate font size */
+    border-radius: 3px; /* Rounded corners */
+}
+
+.known-maps {
+    display: var(--mark-known-maps)
+}
