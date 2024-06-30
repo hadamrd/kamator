@@ -78,8 +78,6 @@ function base64UrlEncode(buffer) {
   return buffer.toString('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
 }
 
-
-
 ipcMain.handle('start-auth', async (event) => {
   return new Promise((resolve, reject) => {
     const codeVerifier = generateCodeVerifier();
@@ -102,14 +100,21 @@ ipcMain.handle('start-auth', async (event) => {
       }
       storedCodeVerifier = null;
       server.close();
+      server = null;
     });
 
-    // Open the authentication URL in the user's default browser
-    open(authUrl);
+    // Check if the server is already running
+    if (!server) {
+      // Open the authentication URL in the user's default browser
+      open(authUrl);
 
-    // Start the local server
-    server = expressApp.listen(localServerPort, () => {
-      console.log(`Local server running on port ${localServerPort}`);
-    });
+      // Start the local server
+      server = expressApp.listen(localServerPort, () => {
+        console.log(`Local server running on port ${localServerPort}`);
+      });
+    } else {
+      // Server is already running, just open the URL
+      open(authUrl);
+    }
   });
 });

@@ -1,27 +1,77 @@
-<!-- eslint-disable vue/no-unused-vars -->
 <template>
   <q-card class="q-pa-md">
-    <q-btn color="primary" label="Authenticate" @click="authenticate" />
-    <q-list class="q-pa-md q-ma-md" bordered>
-      <q-expansion-item v-for="account in accountStore.accounts" :key="account.id" expand-separator
-        :label="account.login" :caption="account.nickname">
+    <q-btn color="primary" label="Add account" @click="authenticate" />
+
+    <!-- Loading and Error States for Accounts -->
+    <div v-if="isAccountsLoading">
+      <q-spinner color="primary" />
+    </div>
+    <div v-else-if="isAccountsError">
+      <q-banner dense>
+        <template v-slot:action>
+          <q-btn flat label="Retry" @click="refetchAccounts" />
+        </template>
+        {{ accountsError.message }}
+      </q-banner>
+    </div>
+
+    <!-- Loading and Error States for Characters -->
+    <div v-if="isCharactersLoading">
+      <q-spinner color="primary" />
+    </div>
+    <div v-else-if="isCharactersError">
+      <q-banner dense>
+        <template v-slot:action>
+          <q-btn flat label="Retry" @click="refetchCharacters" />
+        </template>
+        {{ charactersError.message }}
+      </q-banner>
+    </div>
+
+    <!-- Accounts and Characters List -->
+    <q-list v-else class="q-pa-md q-ma-md" bordered>
+      <q-expansion-item
+        v-for="account in accounts"
+        :key="account.id"
+        expand-separator
+        :label="account.login"
+        :caption="account.nickname"
+      >
         <template v-slot:header>
           <q-item-section avatar>
             <q-avatar size="45px">
-              <img :src="account.avatar" alt="User Avatar">
+              <img :src="account.avatar" alt="User Avatar" />
             </q-avatar>
           </q-item-section>
           <q-item-section>
             <q-item-label>{{ account.login }}</q-item-label>
             <q-item-label caption>{{ account.nickname }}</q-item-label>
           </q-item-section>
+          <q-item-section class="col-auto">
+            <div>
+              <q-btn flat icon="visibility" @click="viewAccount(account.id)">
+                <q-tooltip>View Account</q-tooltip>
+              </q-btn>
+              <q-btn flat icon="delete" @click="deleteAccount(account.id)">
+                <q-tooltip>Delete Account</q-tooltip>
+              </q-btn>
+              <q-btn flat icon="sync" v-if="!fetchingAccounts[account.id]" @click="fetchCharacters(account.id)">
+                <q-tooltip>Fetch Characters</q-tooltip>
+              </q-btn>
+              <q-spinner round size="sm" v-else color="primary" />
+          </div>
+          </q-item-section>
         </template>
         <q-list>
-          <q-item v-for="character in accountStore.getAccountCharacters(account.id)" :key="character.id"
-            class="row items-center" clickable>
+          <q-item
+            v-for="character in getAccountCharacters(account.id)"
+            :key="character.id"
+            class="row items-center"
+            clickable
+          >
             <q-item-section avatar>
               <q-avatar size="60px">
-                <img :src="getCharacterAvatar(character.breedId)" alt="Character Avatar">
+                <img :src="getCharacterAvatar(character.breedId)" alt="Character Avatar" />
               </q-avatar>
             </q-item-section>
             <q-item-section>
@@ -30,10 +80,15 @@
             </q-item-section>
             <q-item-section class="col-auto">
               <div>
-                <q-btn flat label="Farm" @click="quickRunFarm(account.id, character.id)" icon="eco" />
-                <q-btn flat label="TreasureHunt" @click="quickRunTreasureHunt(account.id, character.id)"
-                  icon="explore" />
-                <q-btn flat label="Fight" @click="quickRunFight(account.id, character.id)" icon="sports_martial_arts" />
+                <q-btn flat icon="eco" @click="quickRunFarm(account.id, character.id)">
+                  <q-tooltip>Farm</q-tooltip>
+                </q-btn>
+                <q-btn flat icon="explore" @click="quickRunTreasureHunt(account.id, character.id)">
+                  <q-tooltip>Treasure Hunt</q-tooltip>
+                </q-btn>
+                <q-btn flat icon="sports_martial_arts" @click="quickRunFight(account.id, character.id)">
+                  <q-tooltip>Fight</q-tooltip>
+                </q-btn>
               </div>
             </q-item-section>
           </q-item>
@@ -41,44 +96,138 @@
       </q-expansion-item>
     </q-list>
   </q-card>
-  <SecurityCodeInput v-model="showSecurityCodeDialog"/>
+  <SecurityCodeInput v-model="showSecurityCodeDialog" :accountId="addedAccount.id" @success="onSecurityCodeSuccess()"/>
+  <NicknameDialog v-model="showNicknameDialog" :accountId="addedAccount.id" :accountLogin="addedAccount.login" />
 </template>
+
 
 <script>
 import { ref } from 'vue';
-import { useAccountStore } from 'stores/accounts';
-import { useSessionStore } from 'stores/sessions';
-import { useGlobalStore } from 'stores/globalVuesStore'
+import { useGlobalStore } from 'stores/globalVuesStore';
 import SecurityCodeInput from 'components/forms/SecurityCodeInput.vue';
-import { api } from 'boot/axios';
+import NicknameDialog from 'components/forms/NicknameDialog.vue'
+import accountsApiInstance from 'src/api/account';
+import charactersApiInstance from 'src/api/characters';
+import { Notify } from 'quasar';
 
 export default {
   name: 'AccountsView',
   components: {
-    SecurityCodeInput
+    SecurityCodeInput,
+    NicknameDialog
   },
   setup() {
-    const accountStore = useAccountStore();
-    const sessionStore = useSessionStore();
     const globalStore = useGlobalStore();
     globalStore.header = 'Accounts';
-    const visibleCharacters = ref({});
+
+    const {
+      isLoading: isAccountsLoading,
+      data: accounts,
+      isError: isAccountsError,
+      error: accountsError,
+      refetch: refetchAccounts
+    } = accountsApiInstance.useGetItems();
+
+    const {
+      isLoading: isCharactersLoading,
+      data: characters,
+      isError: isCharactersError,
+      error: charactersError,
+      refetch: refetchCharacters
+    } = charactersApiInstance.useGetItems();
+
+    const showSecurityCodeDialog = ref(false);
+    const addedAccount = ref({id: 0, login: ""});
+    const fetchingAccounts = ref({});
+    const showNicknameDialog = ref(false);
+
+
+    const getAccountCharacters = (accountId) => {
+      if (!characters.value) return [];
+      return characters.value.filter(character => character.account === accountId);
+    };
+
+    const newAccount = async () => {
+      try {
+        const data = await window.electronAPI.startAuth();
+        const response = await accountsApiInstance.addWithCode(data);
+        addedAccount.value = response.account;
+        if (response.code_sent) {
+          showSecurityCodeDialog.value = true;
+        }
+      } catch (error) {
+        // Handle the error appropriately, maybe show a notification
+        console.error('Error during authentication:', error);
+      }
+    };
+
+    const viewAccount = (accountId) => {
+      console.log('View account', accountId);
+      // Logic to view account details
+    };
+
+    const deleteAccount = async (accountId) => {
+      try {
+        await accountsApiInstance.delete(accountId);
+        refetchAccounts(); // Refresh the account list
+        Notify.create({
+          type: 'positive',
+          message: 'Account deleted successfully!',
+          timeout: 1000
+        });
+      } catch (error) {
+        console.error('Error deleting account:', error);
+        Notify.create({
+          type: 'negative',
+          message: 'Error deleting account: ' + error.message,
+          timeout: 1000
+        });
+      }
+    };
+
+    const fetchCharacters = async (accountId) => {
+      try {
+        fetchingAccounts.value[accountId] = true;
+        console.log('Fetch characters for account', accountId);
+        await accountsApiInstance.fetchCharacters(accountId);
+      } catch (error) {
+        console.error('Error fetching characters:', error);
+        Notify.create({
+          type: 'negative',
+          message: 'Error: ' + error.response.data.message,
+          timeout: 1000
+        });
+        if (error.response.data.need_nickname) {
+          addedAccount.value = accounts.value.find((account) => account.id == accountId);
+          showNicknameDialog.value = true;
+        }
+      } finally {
+        fetchingAccounts.value[accountId] = false;
+      }
+    };
 
     return {
-      accountStore,
-      visibleCharacters,
-      sessionStore,
-      showSecurityCodeDialog: ref(false)
+      showSecurityCodeDialog,
+      addedAccount,
+      accounts,
+      isAccountsLoading,
+      isAccountsError,
+      accountsError,
+      refetchAccounts,
+      isCharactersLoading,
+      isCharactersError,
+      charactersError,
+      refetchCharacters,
+      getAccountCharacters,
+      fetchingAccounts,
+      authenticate: newAccount,
+      viewAccount,
+      deleteAccount,
+      fetchCharacters,
+      showNicknameDialog
     };
   },
-  async created() {
-    await this.accountStore.getAccounts();
-    await this.accountStore.getCharacters();
-  },
   methods: {
-    toggleCharacters(accountId) {
-      this.visibleCharacters[accountId] = !this.visibleCharacters[accountId];
-    },
     quickRunTreasureHunt(accountId, characterId) {
       console.log('TreasureHunt dialog opened', accountId, 'and character', characterId);
       // Logic to open the treasure hunt dialog
@@ -92,28 +241,12 @@ export default {
       // Logic to open the farm dialog
     },
     getCharacterAvatar(breedId) {
-      return new URL(`/src/assets/classes/symbol_${breedId}.png`, import.meta.url).href
+      return new URL(`/src/assets/classes/symbol_${breedId}.png`, import.meta.url).href;
     },
-    getAccountCharacters(accountId) {
-      return this.accountStore.getAccountCharacters(accountId);
-    },
-    handleValidationSuccess(data) {
+    onSecurityCodeSuccess() {
       this.showSecurityCodeDialog = false;
-    },
-    async authenticate() {
-      try {
-        const data = await window.electronAPI.startAuth();
-        const response = await api.post('/accounts/add_account/', data);
-        console.log(response.data);
-        if (response.data.code_sent) {
-          this.showSecurityCodeDialog = true;
-        }
-      } catch (error) {
-        console.error('Error during authentication:', error);
-      }
+      this.showNicknameDialog = true;
     }
   }
 };
 </script>
-
-<style scoped></style>

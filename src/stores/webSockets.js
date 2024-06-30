@@ -17,7 +17,7 @@ export const useWebSocketStore = defineStore('webSocketStore', {
             retryCount: 0,
             maxRetries: 100,
             sessionRunStore,
-            notify_endpoint: "ws://127.0.0.1:8000/ws/notifications/",
+            notify_endpoint: "ws://127.0.0.1:8001/ws/notifications/",
             retryDelay: 800,
             status_notify_type: "status_change",
             stats_notify_type: "stats_update",
