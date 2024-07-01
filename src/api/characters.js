@@ -1,8 +1,8 @@
-import BaseCrudApi from './BaseCrudApi';
+import BaseCrudApi from "./BaseCrudApi";
 
 class CharactersApi extends BaseCrudApi {
   constructor() {
-    super('/characters', 'characters');
+    super("/characters", "characters");
   }
 }
 

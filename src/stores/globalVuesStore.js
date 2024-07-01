@@ -1,12 +1,8 @@
-import {
-    defineStore
-} from 'pinia';
+import { defineStore } from "pinia";
 
-export const useGlobalStore = defineStore('global', {
-    state: () => ({
-        header: 'Home'
-    }),  
-    actions : {
-
-    }
+export const useGlobalStore = defineStore("global", {
+  state: () => ({
+    header: "Home",
+  }),
+  actions: {},
 });

@@ -55,11 +55,16 @@
               <q-btn flat icon="delete" @click="deleteAccount(account.id)">
                 <q-tooltip>Delete Account</q-tooltip>
               </q-btn>
-              <q-btn flat icon="sync" v-if="!fetchingAccounts[account.id]" @click="fetchCharacters(account.id)">
+              <q-btn
+                flat
+                icon="sync"
+                v-if="!fetchingAccounts[account.id]"
+                @click="fetchCharacters(account.id)"
+              >
                 <q-tooltip>Fetch Characters</q-tooltip>
               </q-btn>
               <q-spinner round size="sm" v-else color="primary" />
-          </div>
+            </div>
           </q-item-section>
         </template>
         <q-list>
@@ -71,7 +76,10 @@
           >
             <q-item-section avatar>
               <q-avatar size="60px">
-                <img :src="getCharacterAvatar(character.breedId)" alt="Character Avatar" />
+                <img
+                  :src="getCharacterAvatar(character.breedId)"
+                  alt="Character Avatar"
+                />
               </q-avatar>
             </q-item-section>
             <q-item-section>
@@ -80,13 +88,25 @@
             </q-item-section>
             <q-item-section class="col-auto">
               <div>
-                <q-btn flat icon="eco" @click="quickRunFarm(account.id, character.id)">
+                <q-btn
+                  flat
+                  icon="eco"
+                  @click="quickRunFarm(account.id, character.id)"
+                >
                   <q-tooltip>Farm</q-tooltip>
                 </q-btn>
-                <q-btn flat icon="explore" @click="quickRunTreasureHunt(account.id, character.id)">
+                <q-btn
+                  flat
+                  icon="explore"
+                  @click="quickRunTreasureHunt(account.id, character.id)"
+                >
                   <q-tooltip>Treasure Hunt</q-tooltip>
                 </q-btn>
-                <q-btn flat icon="sports_martial_arts" @click="quickRunFight(account.id, character.id)">
+                <q-btn
+                  flat
+                  icon="sports_martial_arts"
+                  @click="quickRunFight(account.id, character.id)"
+                >
                   <q-tooltip>Fight</q-tooltip>
                 </q-btn>
               </div>
@@ -96,36 +116,43 @@
       </q-expansion-item>
     </q-list>
   </q-card>
-  <SecurityCodeInput v-model="showSecurityCodeDialog" :accountId="addedAccount.id" @success="onSecurityCodeSuccess()"/>
-  <NicknameDialog v-model="showNicknameDialog" :accountId="addedAccount.id" :accountLogin="addedAccount.login" />
+  <SecurityCodeInput
+    v-model="showSecurityCodeDialog"
+    :accountId="addedAccount.id"
+    @success="onSecurityCodeSuccess()"
+  />
+  <NicknameDialog
+    v-model="showNicknameDialog"
+    :accountId="addedAccount.id"
+    :accountLogin="addedAccount.login"
+  />
 </template>
 
-
 <script>
-import { ref } from 'vue';
-import { useGlobalStore } from 'stores/globalVuesStore';
-import SecurityCodeInput from 'components/forms/SecurityCodeInput.vue';
-import NicknameDialog from 'components/forms/NicknameDialog.vue'
-import accountsApiInstance from 'src/api/account';
-import charactersApiInstance from 'src/api/characters';
-import { Notify } from 'quasar';
+import { ref } from "vue";
+import { useGlobalStore } from "stores/globalVuesStore";
+import SecurityCodeInput from "components/forms/SecurityCodeInput.vue";
+import NicknameDialog from "components/forms/NicknameDialog.vue";
+import accountsApiInstance from "src/api/account";
+import charactersApiInstance from "src/api/characters";
+import { Notify } from "quasar";
 
 export default {
-  name: 'AccountsView',
+  name: "AccountsView",
   components: {
     SecurityCodeInput,
-    NicknameDialog
+    NicknameDialog,
   },
   setup() {
     const globalStore = useGlobalStore();
-    globalStore.header = 'Accounts';
+    globalStore.header = "Accounts";
 
     const {
       isLoading: isAccountsLoading,
       data: accounts,
       isError: isAccountsError,
       error: accountsError,
-      refetch: refetchAccounts
+      refetch: refetchAccounts,
     } = accountsApiInstance.useGetItems();
 
     const {
@@ -133,18 +160,19 @@ export default {
       data: characters,
       isError: isCharactersError,
       error: charactersError,
-      refetch: refetchCharacters
+      refetch: refetchCharacters,
     } = charactersApiInstance.useGetItems();
 
     const showSecurityCodeDialog = ref(false);
-    const addedAccount = ref({id: 0, login: ""});
+    const addedAccount = ref({ id: 0, login: "" });
     const fetchingAccounts = ref({});
     const showNicknameDialog = ref(false);
 
-
     const getAccountCharacters = (accountId) => {
       if (!characters.value) return [];
-      return characters.value.filter(character => character.account === accountId);
+      return characters.value.filter(
+        (character) => character.account === accountId
+      );
     };
 
     const newAccount = async () => {
@@ -157,12 +185,12 @@ export default {
         }
       } catch (error) {
         // Handle the error appropriately, maybe show a notification
-        console.error('Error during authentication:', error);
+        console.error("Error during authentication:", error);
       }
     };
 
     const viewAccount = (accountId) => {
-      console.log('View account', accountId);
+      console.log("View account", accountId);
       // Logic to view account details
     };
 
@@ -171,16 +199,16 @@ export default {
         await accountsApiInstance.delete(accountId);
         refetchAccounts(); // Refresh the account list
         Notify.create({
-          type: 'positive',
-          message: 'Account deleted successfully!',
-          timeout: 1000
+          type: "positive",
+          message: "Account deleted successfully!",
+          timeout: 1000,
         });
       } catch (error) {
-        console.error('Error deleting account:', error);
+        console.error("Error deleting account:", error);
         Notify.create({
-          type: 'negative',
-          message: 'Error deleting account: ' + error.message,
-          timeout: 1000
+          type: "negative",
+          message: "Error deleting account: " + error.message,
+          timeout: 1000,
         });
       }
     };
@@ -188,17 +216,19 @@ export default {
     const fetchCharacters = async (accountId) => {
       try {
         fetchingAccounts.value[accountId] = true;
-        console.log('Fetch characters for account', accountId);
+        console.log("Fetch characters for account", accountId);
         await accountsApiInstance.fetchCharacters(accountId);
       } catch (error) {
-        console.error('Error fetching characters:', error);
+        console.error("Error fetching characters:", error);
         Notify.create({
-          type: 'negative',
-          message: 'Error: ' + error.response.data.message,
-          timeout: 1000
+          type: "negative",
+          message: "Error: " + error.response.data.message,
+          timeout: 1000,
         });
         if (error.response.data.need_nickname) {
-          addedAccount.value = accounts.value.find((account) => account.id == accountId);
+          addedAccount.value = accounts.value.find(
+            (account) => account.id == accountId
+          );
           showNicknameDialog.value = true;
         }
       } finally {
@@ -224,29 +254,47 @@ export default {
       viewAccount,
       deleteAccount,
       fetchCharacters,
-      showNicknameDialog
+      showNicknameDialog,
     };
   },
   methods: {
     quickRunTreasureHunt(accountId, characterId) {
-      console.log('TreasureHunt dialog opened', accountId, 'and character', characterId);
+      console.log(
+        "TreasureHunt dialog opened",
+        accountId,
+        "and character",
+        characterId
+      );
       // Logic to open the treasure hunt dialog
     },
     quickRunFight(accountId, characterId) {
-      console.log('Fight form dialog opened for account', accountId, 'and character', characterId);
+      console.log(
+        "Fight form dialog opened for account",
+        accountId,
+        "and character",
+        characterId
+      );
       // Logic to open the fight dialog
     },
     quickRunFarm(accountId, characterId) {
-      console.log('Farm form dialog opened for account', accountId, 'and character', characterId);
+      console.log(
+        "Farm form dialog opened for account",
+        accountId,
+        "and character",
+        characterId
+      );
       // Logic to open the farm dialog
     },
     getCharacterAvatar(breedId) {
-      return new URL(`/src/assets/classes/symbol_${breedId}.png`, import.meta.url).href;
+      return new URL(
+        `/src/assets/classes/symbol_${breedId}.png`,
+        import.meta.url
+      ).href;
     },
     onSecurityCodeSuccess() {
       this.showSecurityCodeDialog = false;
       this.showNicknameDialog = true;
-    }
-  }
+    },
+  },
 };
 </script>

@@ -7,8 +7,8 @@ import DofusMap from "components/widgets/DofusMap.vue";
 
 const routes = [
   {
-    path: '/',
-    component: () => import('layouts/MainLayout.vue'),
+    path: "/",
+    component: () => import("layouts/MainLayout.vue"),
     children: [
       {
         name: "AccountsHome",
@@ -22,28 +22,30 @@ const routes = [
       },
       {
         name: "PathsHome",
-        path: "/paths", 
+        path: "/paths",
         component: PathsList,
       },
       {
         name: "DashboardHome",
-        path: "/dashboard", component: () => Promise.resolve(Dashboard),
+        path: "/dashboard",
+        component: () => Promise.resolve(Dashboard),
       },
       {
         name: "NotificationsCenter",
-        path: "/notifications", component: () => Promise.resolve(Notifications),
+        path: "/notifications",
+        component: () => Promise.resolve(Notifications),
       },
       {
         name: "DofusMap",
-        path: "/dofusMap", component: () => Promise.resolve(DofusMap),
-      }
-    ]
+        path: "/dofusMap",
+        component: () => Promise.resolve(DofusMap),
+      },
+    ],
   },
   {
-    path: '/:catchAll(.*)*',
-    component: () => import('pages/ErrorNotFound.vue')
-  }
+    path: "/:catchAll(.*)*",
+    component: () => import("pages/ErrorNotFound.vue"),
+  },
+];
 
-]
-
-export default routes
+export default routes;

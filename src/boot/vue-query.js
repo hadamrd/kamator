@@ -1,5 +1,5 @@
-import { VueQueryPlugin, QueryClient } from '@tanstack/vue-query';
-import { boot } from 'quasar/wrappers';
+import { VueQueryPlugin, QueryClient } from "@tanstack/vue-query";
+import { boot } from "quasar/wrappers";
 
 export const queryClient = new QueryClient({
   defaultOptions: {

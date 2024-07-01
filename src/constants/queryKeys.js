@@ -1,2 +1,2 @@
-export const ACCOUNTS = 'accounts';
-export const CHARACTERS = 'characters';
+export const ACCOUNTS = "accounts";
+export const CHARACTERS = "characters";

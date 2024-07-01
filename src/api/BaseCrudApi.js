@@ -1,7 +1,7 @@
 // src/api/BaseCrudApi.js
-import { api } from 'src/boot/axios';
+import { api } from "src/boot/axios";
 import { useQuery } from "@tanstack/vue-query";
-import { queryClient } from 'src/boot/vue-query';
+import { queryClient } from "src/boot/vue-query";
 
 class BaseCrudApi {
   constructor(endpoint, cacheKey) {
@@ -48,12 +48,12 @@ class BaseCrudApi {
 
   // Utility methods to update the cache
   updateCacheOnAdd(newItem) {
-    queryClient.setQueryData([this.cacheKey, 'all'], (oldData) => {
+    queryClient.setQueryData([this.cacheKey, "all"], (oldData) => {
       if (!oldData) {
         return [newItem];
       }
 
-      const existingIndex = oldData.findIndex(item => item.id === newItem.id);
+      const existingIndex = oldData.findIndex((item) => item.id === newItem.id);
       if (existingIndex !== -1) {
         // Update existing item
         oldData[existingIndex] = newItem;
@@ -66,24 +66,28 @@ class BaseCrudApi {
   }
 
   updateCacheOnUpdate(updatedItem) {
-    queryClient.setQueryData([this.cacheKey, 'all'], (oldData) => {
-      return oldData ? oldData.map(item => item.id === updatedItem.id ? updatedItem : item) : [updatedItem];
+    queryClient.setQueryData([this.cacheKey, "all"], (oldData) => {
+      return oldData
+        ? oldData.map((item) =>
+            item.id === updatedItem.id ? updatedItem : item
+          )
+        : [updatedItem];
     });
   }
 
   updateCacheOnDelete(id) {
-    queryClient.setQueryData([this.cacheKey, 'all'], (oldData) => {
-      return oldData ? oldData.filter(item => item.id !== id) : [];
+    queryClient.setQueryData([this.cacheKey, "all"], (oldData) => {
+      return oldData ? oldData.filter((item) => item.id !== id) : [];
     });
   }
 
   useGetItems() {
     return useQuery({
-      queryKey: [this.cacheKey, 'all'],
+      queryKey: [this.cacheKey, "all"],
       queryFn: async () => {
         const data = await this.getItems();
         return data;
-      }
+      },
     });
   }
 
@@ -93,7 +97,7 @@ class BaseCrudApi {
       queryFn: async () => {
         const data = await this.getItem(itemId);
         return data;
-      }
+      },
     });
   }
 }

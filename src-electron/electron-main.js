@@ -1,18 +1,18 @@
-import { app, BrowserWindow, ipcMain } from 'electron'
-import path from 'path'
-import os from 'os'
+import { app, BrowserWindow, ipcMain } from "electron";
+import path from "path";
+import os from "os";
 
-const express = require('express'); // Ensure this is imported
-const crypto = require('crypto');
-const open = require('open');
-const axios = require('axios');
+const express = require("express"); // Ensure this is imported
+const crypto = require("crypto");
+const open = require("open");
+const axios = require("axios");
 
 // needed in case process is undefined under Linux
-const platform = process.platform || os.platform()
+const platform = process.platform || os.platform();
 
-let mainWindow
+let mainWindow;
 const localServerPort = 9001;
-const clientId = '102';
+const clientId = "102";
 const redirectUri = `http://127.0.0.1:${localServerPort}/authorized`;
 let server; // This will hold the server instance
 let storedCodeVerifier; // Store the code verifier
@@ -22,48 +22,48 @@ function createWindow() {
    * Initial window options
    */
   mainWindow = new BrowserWindow({
-    icon: path.resolve(__dirname, 'icons/icon.png'), // tray icon
+    icon: path.resolve(__dirname, "icons/icon.png"), // tray icon
     width: 1000,
     height: 600,
     useContentSize: true,
     webPreferences: {
       contextIsolation: true,
       // More info: https://v2.quasar.dev/quasar-cli-vite/developing-electron-apps/electron-preload-script
-      preload: path.resolve(__dirname, process.env.QUASAR_ELECTRON_PRELOAD)
-    }
-  })
+      preload: path.resolve(__dirname, process.env.QUASAR_ELECTRON_PRELOAD),
+      nodeIntegration: false,
+    },
+  });
 
-  mainWindow.loadURL(process.env.APP_URL)
+  mainWindow.loadURL(process.env.APP_URL);
 
   if (process.env.DEBUGGING) {
     // if on DEV or Production with debug enabled
-    mainWindow.webContents.openDevTools()
+    mainWindow.webContents.openDevTools();
   } else {
     // we're on production; no access to devtools pls
-    mainWindow.webContents.on('devtools-opened', () => {
-      mainWindow.webContents.closeDevTools()
-    })
+    mainWindow.webContents.on("devtools-opened", () => {
+      mainWindow.webContents.closeDevTools();
+    });
   }
 
-  mainWindow.on('closed', () => {
-    mainWindow = null
-  })
+  mainWindow.on("closed", () => {
+    mainWindow = null;
+  });
 }
 
-app.whenReady().then(createWindow)
+app.whenReady().then(createWindow);
 
-app.on('window-all-closed', () => {
-  if (platform !== 'darwin') {
-    app.quit()
+app.on("window-all-closed", () => {
+  if (platform !== "darwin") {
+    app.quit();
   }
-})
+});
 
-app.on('activate', () => {
+app.on("activate", () => {
   if (mainWindow === null) {
-    createWindow()
+    createWindow();
   }
-})
-
+});
 
 // Generate code verifier and code challenge
 function generateCodeVerifier() {
@@ -71,14 +71,20 @@ function generateCodeVerifier() {
 }
 
 function generateCodeChallenge(codeVerifier) {
-  return base64UrlEncode(crypto.createHash('sha256').update(codeVerifier).digest());
+  return base64UrlEncode(
+    crypto.createHash("sha256").update(codeVerifier).digest()
+  );
 }
 
 function base64UrlEncode(buffer) {
-  return buffer.toString('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+  return buffer
+    .toString("base64")
+    .replace(/=/g, "")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_");
 }
 
-ipcMain.handle('start-auth', async (event) => {
+ipcMain.handle("start-auth", async (event) => {
   return new Promise((resolve, reject) => {
     const codeVerifier = generateCodeVerifier();
     const codeChallenge = generateCodeChallenge(codeVerifier);
@@ -89,14 +95,16 @@ ipcMain.handle('start-auth', async (event) => {
 
     const expressApp = express();
 
-    expressApp.get('/authorized', async (req, res) => {
+    expressApp.get("/authorized", async (req, res) => {
       const code = req.query.code;
       if (code && storedCodeVerifier) {
-        res.send('<h1>Authorization successful! You can close this window now.</h1>');
+        res.send(
+          "<h1>Authorization successful! You can close this window now.</h1>"
+        );
         resolve({ code, codeVerifier: storedCodeVerifier });
       } else {
-        res.send('<h1>Authorization failed! No code received.</h1>');
-        reject(new Error('Authorization failed! No code received.'));
+        res.send("<h1>Authorization failed! No code received.</h1>");
+        reject(new Error("Authorization failed! No code received."));
       }
       storedCodeVerifier = null;
       server.close();

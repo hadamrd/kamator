@@ -1,7 +1,7 @@
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer } = require("electron");
 
-contextBridge.exposeInMainWorld('electronAPI', {
+contextBridge.exposeInMainWorld("electronAPI", {
   startAuth: async () => {
-    return await ipcRenderer.invoke('start-auth');
-  }
+    return await ipcRenderer.invoke("start-auth");
+  },
 });
