@@ -17,7 +17,7 @@ export const useWebSocketStore = defineStore("webSocketStore", {
       retryCount: 0,
       maxRetries: 100,
       sessionRunStore,
-      notify_endpoint:  import.meta.env.VITE_NOTIFY_ENDPOINT || "ws://127.0.0.1:8001/ws/notifications/",
+      notify_endpoint:  import.meta.env.VITE_NOTIFY_ENDPOINT,
       retryDelay: 800,
       status_notify_type: "status_change",
       stats_notify_type: "stats_update",
@@ -139,6 +139,7 @@ export const useWebSocketStore = defineStore("webSocketStore", {
       if (this.ws && this.ws.readyState === WebSocket.OPEN) {
         this.ws.send(JSON.stringify(message));
       }
+      throw Error("Cant send message cause the socket is closed");
     },
     clearNotifications() {
       this.notifications = [];

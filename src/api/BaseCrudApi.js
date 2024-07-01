@@ -100,6 +100,12 @@ class BaseCrudApi {
       },
     });
   }
+
+  clearAllCache() {
+    queryClient.setQueryData([this.cacheKey, "all"], (oldData) => {
+      return [];
+    });
+  }
 }
 
 export default BaseCrudApi;

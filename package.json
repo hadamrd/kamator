@@ -23,6 +23,7 @@
     "leaflet": "^1.9.4",
     "leaflet-canvas-layer": "^1.0.8",
     "leaflet.markercluster": "^1.5.3",
+    "mitt": "^3.0.1",
     "pinia": "^2.1.7",
     "quasar": "^2.16.0",
     "uuid": "^9.0.1",

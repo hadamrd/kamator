@@ -41,7 +41,7 @@ export class DofusWorldMap extends L.Map {
     this.addControl(this.mouseTooltip);
     this.markerLayer = new MarkerLayer(this);
     this.resourceLayer = new ResourceLayer(this);
-    this.highlightOverlay = new MapHighlightOverlay(this);
+    // this.highlightOverlay = new MapHighlightOverlay(this);
     this.setView(center, zoom);
   }
 

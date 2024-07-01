@@ -9,35 +9,25 @@
       <q-item-section>
         <q-item-label>{{ session.id }}</q-item-label>
         <q-item-label caption>{{ session.type }}</q-item-label>
-        <q-item-label caption
-          >Status: {{ getSessionStatus(session.id) }}</q-item-label
-        >
+        <q-item-label caption>Status: {{ getSessionStatus(session.id) }}</q-item-label>
       </q-item-section>
       <q-item-section class="col-5 gt-sm">
-        <q-item-label
-          >Main character:
-          {{ getSessionCharacter(session)?.name }}</q-item-label
-        >
-        <q-item-label caption
-          >Server: {{ getSessionCharacter(session)?.serverName }}</q-item-label
-        >
+        <q-item-label>Main character:
+          {{ getSessionCharacter(session)?.name }}</q-item-label>
+        <q-item-label caption>Account: {{ getSessionCharacter(session)?.account }}</q-item-label>
+        <q-item-label caption>Server: {{ getSessionCharacter(session)?.serverName }}</q-item-label>
       </q-item-section>
       <q-item-section side>
         <q-btn-group push>
-          <q-btn
-            v-if="!isSessionRunning(session.id)"
-            icon="play_arrow"
-            @click="toggleStartStop(session.id)"
-            aria-label="Start Session"
-          />
-          <q-btn
-            v-else
-            icon="stop"
-            @click="toggleStartStop(session.id)"
-            aria-label="Stop Session"
-          />
+          <q-btn v-if="!isSessionRunning(session.id)" icon="play_arrow" @click="toggleStartStop(session.id)"
+            aria-label="Start Session" />
+          <q-btn v-else icon="stop" @click="toggleStartStop(session.id)" aria-label="Stop Session" />
           <q-btn icon="delete" @click="deleteSession(session.id)" />
-          <q-btn icon="visibility" @click="viewSessionDetails(session.id)" />
+          <q-btn
+            icon="visibility"
+            :to="getLogViewerRoute(session)"
+            @click="logButtonClick"
+          />
         </q-btn-group>
       </q-item-section>
     </q-item>
@@ -49,16 +39,17 @@ import { useSessionStore } from "stores/sessions";
 import { useAccountStore } from "stores/accounts";
 import { useSessionRunStore } from "src/stores/sessionRuns";
 import { ref } from "vue";
-import { SessionStatusEnum } from "src/enums/sessionEnums";
+import { useWebSocketStore } from "stores/webSockets";
 
 export default {
   name: "SessionList",
   setup() {
+    const wsStore = useWebSocketStore();
     const sessionStore = useSessionStore();
     const accountStore = useAccountStore();
     const sessionRunStore = useSessionRunStore();
     const isSessionRunning_ = ref({});
-    return { sessionStore, accountStore, sessionRunStore, isSessionRunning_ };
+    return { sessionStore, accountStore, sessionRunStore, isSessionRunning_, wsStore };
   },
   async created() {
     await this.sessionStore.getSessions();
@@ -67,6 +58,14 @@ export default {
     await this.sessionRunStore.getSessionsRuns();
   },
   methods: {
+    getLogViewerRoute(session) {
+      const character = this.getSessionCharacter(session);
+      const accountId = character?.account;
+      return { name: 'LogViewer', params: { botName: accountId } };
+    },
+    logButtonClick() {
+      console.log('Button clicked');
+    },
     getSessionCharacter(session) {
       if (!this.accountStore.characters) return null;
       return this.accountStore.characters.find(
@@ -81,10 +80,10 @@ export default {
       }
     },
     getSessionStatus(sessionId) {
-      return (
-        this.sessionRunStore.getSessionStatus(sessionId) ||
-        SessionStatusEnum.DOWN
-      ); // Make sure getSessionStatus method exists in sessionRunStore
+      if (this.isSessionRunning(sessionId)) {
+        return "RUNNING";
+      }
+      return "DOWN";
     },
     isSessionRunning(sessionId) {
       return this.sessionRunStore.isSessionRunning(sessionId);

@@ -1,6 +1,7 @@
 import { api } from "src/boot/axios";
 import BaseCrudApi from "./BaseCrudApi";
 import charactersApiInstance from "./characters";
+import { queryClient } from "src/boot/vue-query";
 
 class AccountsApi extends BaseCrudApi {
   constructor() {
@@ -26,12 +27,19 @@ class AccountsApi extends BaseCrudApi {
     return response.data;
   }
 
+  clearCharactersFromCache(accountId) {
+    queryClient.setQueryData([this.cacheKey, "all"], (oldData) => {
+      if (!oldData) return [];
+      return oldData.filter((item) => item.accountId !== accountId);
+    });
+  }
+
   async fetchCharacters(accountId) {
     const response = await api.post(
       `${this.endpoint}/${accountId}/fetch_characters/`
     );
     if (response.status == 200) {
-      console.log(response.data);
+      this.clearCharactersFromCache(accountId);
       if (Array.isArray(response.data.characters)) {
         const characters = response.data.characters;
         if (characters.length > 0) {

@@ -4,12 +4,14 @@ import PathsList from "components/PathsList.vue";
 import Dashboard from "components/Dashboard.vue";
 import Notifications from "components/Notifications.vue";
 import DofusMap from "components/widgets/DofusMap.vue";
+import LogViewer from "components/widgets/LogViewer.vue";
 
 const routes = [
   {
     path: "/",
     component: () => import("layouts/MainLayout.vue"),
     children: [
+      { path: "", redirect: { name: "SessionsHome" } },
       {
         name: "AccountsHome",
         path: "/accounts",
@@ -39,6 +41,12 @@ const routes = [
         name: "DofusMap",
         path: "/dofusMap",
         component: () => Promise.resolve(DofusMap),
+      },
+      {
+        name: "LogViewer",
+        props: true,
+        path: "/logs/:botName",
+        component: LogViewer,
       },
     ],
   },
