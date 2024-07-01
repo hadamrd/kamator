@@ -2,7 +2,7 @@
   <q-dialog :model-value="modelValue" persistent>
     <q-card style="min-width: 350px">
       <q-card-section class="row items-center q-pb-none">
-        <div class="text-h6">Set Nickname</div>
+        <div class="text-h6">Give bot server</div>
         <q-space />
         <q-btn
           icon="close"
@@ -15,20 +15,23 @@
       </q-card-section>
 
       <q-card-section class="q-pt-none">
-        <p>
-          Please enter a nickname for the account with login: {{ accountLogin }}
-        </p>
-        <q-input
-          v-model="nickname"
-          label="Nickname"
-          :rules="[(val) => !!val || 'Nickname is required']"
-          @keyup.enter="submitNickname"
+        <p>Please select the bot server</p>
+        <q-select
+          v-model="selectedServer"
+          :options="dofusData.servers"
+          option-label="name"
+          option-value="id"
+          label="Select Server"
+          :loading="isDofusDataLoading"
+          emit-value
+          map-options
         />
       </q-card-section>
 
       <q-card-section>
         <q-btn
-          @click="submitNickname"
+          @click="submit"
+          :loading="loading"
           label="Validate"
           color="primary"
           class="full-width q-mt-md"
@@ -42,14 +45,11 @@
 import { ref } from "vue";
 import { useQuasar } from "quasar";
 import accountsApiInstance from "src/api/account";
+import dofusDataApiInstance from "src/api/dofusData";
 
 export default {
-  name: "NicknameDialog",
+  name: "QuickBotCreateDialog",
   props: {
-    accountLogin: {
-      type: [Number, String],
-      required: true,
-    },
     accountId: {
       type: [Number, String],
       required: true,
@@ -59,47 +59,53 @@ export default {
       default: false,
     },
   },
-  emits: ["update:modelValue", "doubleAuth"],
+  emits: ["update:modelValue", "submitted", "doubleAuth"],
   setup(props, { emit }) {
     const $q = useQuasar();
-
-    const nickname = ref("");
+    const selectedServer = ref(null);
     const loading = ref(false);
 
+    const {
+      isLoading: isDofusDataLoading,
+      data: dofusData,
+      isError: isDofusDataError,
+      error: dofusDataError,
+    } = dofusDataApiInstance.useGetItems();
+
     const closeDialog = () => {
-      nickname.value = "";
       emit("update:modelValue", false);
     };
 
-    const submitNickname = async () => {
-      if (!nickname.value) {
+    const submit = async () => {
+      if (!selectedServer.value) {
         $q.notify({
           color: "negative",
-          message: "Please enter a nickname",
+          message: "Please select a server",
         });
         return;
       }
 
       loading.value = true;
       try {
-        const response = await accountsApiInstance.setNickname(
+        const response = await accountsApiInstance.quickCharacterCreate(
           props.accountId,
-          nickname.value
+          selectedServer.value
         );
         if (response.data.double_auth) {
           emit("doubleAuth", response);
           closeDialog();
         }
+        console.log(response);
         $q.notify({
           color: "positive",
-          message: "Nickname set successfully",
+          message: "Character created successfully",
         });
-        emit("nickname-set", nickname.value);
+        emit("submitted");
         closeDialog();
       } catch (error) {
         $q.notify({
           color: "negative",
-          message: `Error setting nickname: ${error.response.data.detail}`,
+          message: `Error creating character: ${error.response.data.message}`,
         });
       } finally {
         loading.value = false;
@@ -107,10 +113,14 @@ export default {
     };
 
     return {
-      nickname,
+      selectedServer,
+      isDofusDataLoading,
       loading,
+      dofusData,
+      isDofusDataError,
+      dofusDataError,
       closeDialog,
-      submitNickname,
+      submit,
     };
   },
 };

@@ -12,7 +12,7 @@ class AccountsApi extends BaseCrudApi {
     if (response.status === 200 && response.data.account) {
       this.updateCacheOnAdd(response.data.account);
     }
-    return response.data;
+    return response;
   }
 
   async securityCode(code, accountId) {
@@ -37,7 +37,7 @@ class AccountsApi extends BaseCrudApi {
         if (characters.length > 0) {
           characters.forEach((character) => {
             if (character && character.id) {
-              console.log("character to add : ", character)
+              console.log("character to add : ", character);
               charactersApiInstance.updateCacheOnAdd(character);
             }
           });
@@ -46,6 +46,17 @@ class AccountsApi extends BaseCrudApi {
       }
       return response;
     }
+  }
+
+  async quickCharacterCreate(accountId, serverId) {
+    const response = await api.post(
+      `${this.endpoint}/${accountId}/quick_character_create/`,
+      { serverId }
+    );
+    if (response.status == 200) {
+      charactersApiInstance.updateCacheOnAdd(response.data.character);
+    }
+    return response;
   }
 
   async setNickname(accountId, nickname) {

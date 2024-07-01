@@ -1,6 +1,6 @@
 <template>
   <q-card class="q-pa-md">
-    <q-btn color="primary" label="Add account" @click="authenticate" />
+    <q-btn color="primary" label="Add account" @click="newAccount" />
 
     <!-- Loading and Error States for Accounts -->
     <div v-if="isAccountsLoading">
@@ -48,7 +48,10 @@
             <q-item-label caption>{{ account.nickname }}</q-item-label>
           </q-item-section>
           <q-item-section class="col-auto">
-            <div>
+            <q-btn-group push>
+              <q-btn flat icon="add" @click="quickBotCreate(account)">
+                <q-tooltip>Quick bot create</q-tooltip>
+              </q-btn>
               <q-btn flat icon="visibility" @click="viewAccount(account.id)">
                 <q-tooltip>View Account</q-tooltip>
               </q-btn>
@@ -59,12 +62,12 @@
                 flat
                 icon="sync"
                 v-if="!fetchingAccounts[account.id]"
-                @click="fetchCharacters(account.id)"
+                @click="fetchCharacters(account)"
               >
                 <q-tooltip>Fetch Characters</q-tooltip>
               </q-btn>
               <q-spinner round size="sm" v-else color="primary" />
-            </div>
+            </q-btn-group>
           </q-item-section>
         </template>
         <q-list>
@@ -115,23 +118,30 @@
         </q-list>
       </q-expansion-item>
     </q-list>
+    <SecurityCodeInput
+      v-model="showSecurityCodeDialog"
+      :accountId="selectedAccount.id"
+      @success="onSecurityCodeSuccess()"
+    />
+    <QuickBotCreateDialog
+      v-model="showQuickBotCreateDialog"
+      :accountId="selectedAccount.id"
+      @doubleAuth="(response) => checkDoubleAuth(selectedAccount, response)"
+    />
+    <NicknameDialog
+      v-model="showNicknameDialog"
+      :accountId="selectedAccount.id"
+      :accountLogin="selectedAccount.login"
+      @doubleAuth="(response) => checkDoubleAuth(selectedAccount, response)"
+    />
   </q-card>
-  <SecurityCodeInput
-    v-model="showSecurityCodeDialog"
-    :accountId="addedAccount.id"
-    @success="onSecurityCodeSuccess()"
-  />
-  <NicknameDialog
-    v-model="showNicknameDialog"
-    :accountId="addedAccount.id"
-    :accountLogin="addedAccount.login"
-  />
 </template>
 
 <script>
 import { ref } from "vue";
 import { useGlobalStore } from "stores/globalVuesStore";
 import SecurityCodeInput from "components/forms/SecurityCodeInput.vue";
+import QuickBotCreateDialog from "components/forms/QuickBotCreateDialog.vue";
 import NicknameDialog from "components/forms/NicknameDialog.vue";
 import accountsApiInstance from "src/api/account";
 import charactersApiInstance from "src/api/characters";
@@ -142,6 +152,7 @@ export default {
   components: {
     SecurityCodeInput,
     NicknameDialog,
+    QuickBotCreateDialog,
   },
   setup() {
     const globalStore = useGlobalStore();
@@ -164,9 +175,10 @@ export default {
     } = charactersApiInstance.useGetItems();
 
     const showSecurityCodeDialog = ref(false);
-    const addedAccount = ref({ id: 0, login: "" });
+    const selectedAccount = ref({ id: 0, login: "" });
     const fetchingAccounts = ref({});
     const showNicknameDialog = ref(false);
+    const showQuickBotCreateDialog = ref(false);
 
     const getAccountCharacters = (accountId) => {
       if (!characters.value) return [];
@@ -179,12 +191,11 @@ export default {
       try {
         const data = await window.electronAPI.startAuth();
         const response = await accountsApiInstance.addWithCode(data);
-        addedAccount.value = response.account;
-        if (response.code_sent) {
+        selectedAccount.value = response.data.account;
+        if (response.data.code_sent) {
           showSecurityCodeDialog.value = true;
         }
       } catch (error) {
-        // Handle the error appropriately, maybe show a notification
         console.error("Error during authentication:", error);
       }
     };
@@ -213,11 +224,36 @@ export default {
       }
     };
 
-    const fetchCharacters = async (accountId) => {
+    const quickBotCreate = async (account) => {
+      selectedAccount.value = account;
+      showQuickBotCreateDialog.value = true;
+    };
+
+    const checkDoubleAuth = (account, response) => {
+      if (response.data.double_auth) {
+        if (response.data.code_sent) {
+          selectedAccount.value = account;
+          showNicknameDialog.value = false;
+          showQuickBotCreateDialog.value = false;
+          showSecurityCodeDialog.value = true;
+        } else {
+          Notify.create({
+            type: "negative",
+            message: response.data.message,
+            timeout: 1000,
+          });
+        }
+      }
+    };
+
+    const fetchCharacters = async (account) => {
       try {
-        fetchingAccounts.value[accountId] = true;
-        console.log("Fetch characters for account", accountId);
-        await accountsApiInstance.fetchCharacters(accountId);
+        fetchingAccounts.value[account.id] = true;
+        console.log("Fetch characters for account", account.id);
+        const response = await accountsApiInstance.fetchCharacters(account.id);
+        if (response.data.double_auth) {
+          checkDoubleAuth(account, response);
+        }
       } catch (error) {
         console.error("Error fetching characters:", error);
         Notify.create({
@@ -226,19 +262,18 @@ export default {
           timeout: 1000,
         });
         if (error.response.data.need_nickname) {
-          addedAccount.value = accounts.value.find(
-            (account) => account.id == accountId
-          );
+          selectedAccount.value = account;
+          showSecurityCodeDialog.value = false;
           showNicknameDialog.value = true;
         }
       } finally {
-        fetchingAccounts.value[accountId] = false;
+        fetchingAccounts.value[account.id] = false;
       }
     };
 
     return {
       showSecurityCodeDialog,
-      addedAccount,
+      selectedAccount,
       accounts,
       isAccountsLoading,
       isAccountsError,
@@ -250,11 +285,14 @@ export default {
       refetchCharacters,
       getAccountCharacters,
       fetchingAccounts,
-      authenticate: newAccount,
       viewAccount,
       deleteAccount,
       fetchCharacters,
       showNicknameDialog,
+      quickBotCreate,
+      showQuickBotCreateDialog,
+      newAccount,
+      checkDoubleAuth,
     };
   },
   methods: {
