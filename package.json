@@ -11,7 +11,8 @@
     "test": "echo \"No test specified\" && exit 0",
     "dev": "quasar dev",
     "build": "quasar build",
-    "build:prod": "quasar build -m spa --env=production"
+    "build:prod": "quasar build -m electron --env=production",
+    "start:prod": "electron dist/electron/UnPackaged"
   },
   "dependencies": {
     "@quasar/extras": "^1.16.4",
