@@ -41,7 +41,7 @@ export default {
   methods: {
     addLogMessage(message) {
       this.logs.push(message);
-      if (this.logs.length > 200) {
+      if (this.logs.length > 500) {
         this.logs.shift();
       }
       if (this.autoScroll && !this.selectMode) { // Only auto-scroll if not in select mode
@@ -117,6 +117,8 @@ export default {
 </script>
 
 <style scoped>
+@import url('https://fonts.googleapis.com/css2?family=Cascadia+Code:wght@400&display=swap');
+
 .log-viewer-card {
   display: flex;
   flex-direction: column;
@@ -154,13 +156,15 @@ export default {
   overflow-y: auto;
   background-color: #fdf6e3; /* Solarized Light background */
   color: #657b83; /* Solarized Light text color */
-  padding: 10px;
-  font-family: 'Courier New', Courier, monospace;
-  font-size: 0.875rem;
+  padding: 5px; /* Reduce padding */
+  font-family: 'Cascadia Code', Courier, monospace; /* Use Cascadia Code font */
+  font-size: 0.875rem; /* Font size */
+  line-height: 1.1; /* Line height */
+  font-weight: 550; /* Normal font weight */
 }
 
 .log-entry {
-  padding: 0px 0; /* Reduce padding */
+  padding: 0; /* Remove padding */
   margin: 0; /* Remove margin */
   transition: background-color 0.3s;
 }
