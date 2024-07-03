@@ -15,8 +15,8 @@ export const useWebSocketStore = defineStore("webSocketStore", {
       notifications: ref([]),
       retryCount: 0,
       maxRetries: 100,
-      notify_endpoint:  import.meta.env.VITE_NOTIFY_ENDPOINT,
-      retryDelay: 800,
+      notify_endpoint: import.meta.env.VITE_NOTIFY_ENDPOINT,
+      retryDelay: 2000,
       status_notify_type: "status_change",
       stats_notify_type: "stats_update",
       notify_timeout: 1000,
@@ -74,20 +74,19 @@ export const useWebSocketStore = defineStore("webSocketStore", {
         timeout: this.notify_timeout,
       });
       console.log("WebSocket connected.");
-      this.resetRetryCount(); // Reset retries on successful connection
+      this.resetRetryCount();
     },
     handleMessage(event) {
       let notifyData = JSON.parse(event.data);
       notifyData = JSON.parse(notifyData.message);
-      // console.log('Received notification:', notifyData.type);
 
       if (notifyData.type === this.status_notify_type) {
-        sessionRunsApiInstance.updateSessionStatus(
+        sessionRunsApiInstance.updateCacheOnUpdate(
           notifyData.session_run_id,
-          notifyData.new_status
+          { status: notifyData.new_status }
         );
       } else if (notifyData.type === this.stats_notify_type) {
-        if (notifyData.event_id in NotifiableEvents) {
+        if (notifyData.event_id in NotifiableEvents) { //FIXME : this will never be matched!
           let message = "Unknown notification message.";
           if (notifyData.event_id == NotifiableEvents.PlayerLeveledUp) {
             message = `${notifyData.character_name} has leveled up!`;
@@ -101,7 +100,7 @@ export const useWebSocketStore = defineStore("webSocketStore", {
           });
         }
         this.notifications.push(notifyData);
-        sessionRunsApiInstance.updateSessionStats(
+        sessionRunsApiInstance.updateCacheOnUpdate(
           notifyData.session_run_id,
           notifyData.player_stats
         );
