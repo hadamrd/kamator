@@ -106,7 +106,6 @@
 <script>
 import { ref } from "vue";
 import { useWebSocketStore } from "src/stores/webSockets";
-import { useSessionRunStore } from "src/stores/sessionRuns";
 import { useGlobalStore } from "src/stores/globalVuesStore";
 import Taskbar from "components/Taskbar.vue";
 
@@ -117,20 +116,17 @@ export default {
   },
   setup() {
     const wsstore = useWebSocketStore();
-    const sessionRunStore = useSessionRunStore();
     const globalStore = useGlobalStore();
     wsstore.initializeWebSocket();
 
     return {
       wsstore,
-      sessionRunStore,
       leftDrawerOpen: ref(true),
       showHeader: ref(true),
       globalStore,
     };
   },
   async created() {
-    this.sessionRunStore.getSessionsRuns();
     this.wsstore.initializeWebSocket();
   },
   unmounted() {

@@ -1,7 +1,7 @@
 import { defineStore } from "pinia";
-import { useSessionRunStore } from "./sessionRuns";
 import { Notify } from "quasar";
 import { ref } from "vue";
+import sessionRunsApiInstance from "src/api/sessionRuns";
 
 const NotifiableEvents = {
   PlayerLeveledUp: "PlayerLeveledUp",
@@ -10,13 +10,11 @@ const NotifiableEvents = {
 
 export const useWebSocketStore = defineStore("webSocketStore", {
   state: () => {
-    const sessionRunStore = useSessionRunStore();
     return {
       ws: null,
       notifications: ref([]),
       retryCount: 0,
       maxRetries: 100,
-      sessionRunStore,
       notify_endpoint:  import.meta.env.VITE_NOTIFY_ENDPOINT,
       retryDelay: 800,
       status_notify_type: "status_change",
@@ -84,10 +82,9 @@ export const useWebSocketStore = defineStore("webSocketStore", {
       // console.log('Received notification:', notifyData.type);
 
       if (notifyData.type === this.status_notify_type) {
-        this.sessionRunStore.updateSessionStatus(
+        sessionRunsApiInstance.updateSessionStatus(
           notifyData.session_run_id,
-          notifyData.new_status,
-          notifyData.details
+          notifyData.new_status
         );
       } else if (notifyData.type === this.stats_notify_type) {
         if (notifyData.event_id in NotifiableEvents) {
@@ -104,7 +101,7 @@ export const useWebSocketStore = defineStore("webSocketStore", {
           });
         }
         this.notifications.push(notifyData);
-        this.sessionRunStore.updateSessionStats(
+        sessionRunsApiInstance.updateSessionStats(
           notifyData.session_run_id,
           notifyData.player_stats
         );

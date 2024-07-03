@@ -4,7 +4,6 @@
 </template>
 
 <script>
-import { useSessionRunStore } from "src/stores/sessionRuns";
 import SessionRunList from "./SessionRunList.vue";
 import SessionRunDetails from "./SessionRunDetails.vue";
 import { useGlobalStore } from "stores/globalVuesStore";
@@ -18,13 +17,9 @@ export default {
     SessionRunDetails,
   },
   setup() {
-    const sessionRunStore = useSessionRunStore();
     const globalStore = useGlobalStore();
     globalStore.header = "Dashboard";
-    return { sessionRunStore, selectedSession: ref(null) };
-  },
-  async created() {
-    await this.sessionRunStore.getSessionsRuns();
+    return { selectedSession: ref(null) };
   },
   methods: {
     selectSession(sessionId) {

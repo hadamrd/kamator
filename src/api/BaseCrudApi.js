@@ -46,20 +46,16 @@ class BaseCrudApi {
     return response.data;
   }
 
-  // Utility methods to update the cache
   updateCacheOnAdd(newItem) {
     queryClient.setQueryData([this.cacheKey, "all"], (oldData) => {
       if (!oldData) {
         return [newItem];
       }
-
       const existingIndex = oldData.findIndex((item) => item.id === newItem.id);
       if (existingIndex !== -1) {
-        // Update existing item
         oldData[existingIndex] = newItem;
         return [...oldData];
       } else {
-        // Add new item
         return [...oldData, newItem];
       }
     });
@@ -76,6 +72,7 @@ class BaseCrudApi {
   }
 
   updateCacheOnDelete(id) {
+    queryClient.invalidateQueries([this.cacheKey, id]);
     queryClient.setQueryData([this.cacheKey, "all"], (oldData) => {
       return oldData ? oldData.filter((item) => item.id !== id) : [];
     });
@@ -86,6 +83,9 @@ class BaseCrudApi {
       queryKey: [this.cacheKey, "all"],
       queryFn: async () => {
         const data = await this.getItems();
+        data.forEach((item) => {
+          queryClient.setQueryData([this.cacheKey, item.id], item);
+        });
         return data;
       },
     });
@@ -95,8 +95,9 @@ class BaseCrudApi {
     return useQuery({
       queryKey: [this.cacheKey, itemId],
       queryFn: async () => {
-        const data = await this.getItem(itemId);
-        return data;
+        const response = await this.getItem(itemId);
+        this.updateCacheOnAdd(response.data);
+        return response;
       },
     });
   }

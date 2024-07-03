@@ -1,16 +1,19 @@
 <template>
   <q-card class="log-viewer-card">
-    <q-card-section>
-      <div class="log-header">
-        <h3 class="log-title">Bot Logs for {{ botName }}</h3>
-        <div class="log-actions">
-          <q-btn color="primary" class="log-action-btn" @click="clearLogs">Clear Logs</q-btn>
-          <q-btn color="warning" class="log-action-btn" @click="toggleSelectMode">{{ selectMode ? 'Exit Select Mode' : 'Select Mode' }}</q-btn>
-          <q-btn color="negative" class="log-action-btn" @click="quit">Quit</q-btn>
-        </div>
+    <q-card-section class="log-header">
+      <h3 class="log-title">Logs of the account {{ botName }}</h3>
+      <div class="log-actions">
+        <q-btn color="primary" class="log-action-btn" @click="clearLogs">Clear Logs</q-btn>
+        <q-btn color="warning" class="log-action-btn" @click="toggleSelectMode">{{ selectMode ? 'Exit Select Mode' :
+          'Select Mode' }}</q-btn>
+        <q-btn color="negative" class="log-action-btn" @click="quit">Quit</q-btn>
       </div>
-      <div class="log-container" ref="logContainer" @scroll="handleScroll" @mousedown="stopAutoScroll" @mouseup="resumeAutoScroll">
-        <div v-for="(log, index) in logs" :key="index" :class="['log-entry', { 'select-mode': selectMode }]" v-html="log"></div>
+    </q-card-section>
+    <q-card-section>
+      <div class="log-container" ref="logContainer" @scroll="handleScroll" @mousedown="stopAutoScroll"
+        @mouseup="resumeAutoScroll">
+        <div v-for="(log, index) in logs" :key="index" :class="['log-entry', { 'select-mode': selectMode }]"
+          v-html="log"></div>
       </div>
     </q-card-section>
   </q-card>
@@ -41,13 +44,13 @@ export default {
   methods: {
     addLogMessage(message) {
       this.logs.push(message);
-      if (this.logs.length > 500) {
+      if (this.logs.length > 1000) {
         this.logs.shift();
       }
       if (this.autoScroll && !this.selectMode) { // Only auto-scroll if not in select mode
         // Scroll to bottom
         nextTick(() => {
-          const container = this.logContainer;
+          const container = this.$refs.logContainer;
           if (container) {
             container.scrollTop = container.scrollHeight;
           }
@@ -65,11 +68,6 @@ export default {
     quit() {
       LoggingService.stopLogStream(this.botName);
       LoggingService.closeWebSocket();
-      Notify.create({
-        timeout: 500,
-        type: 'warning',
-        message: 'Logging session ended',
-      });
       this.goBack();
     },
     goBack() {
@@ -122,23 +120,29 @@ export default {
 .log-viewer-card {
   display: flex;
   flex-direction: column;
-  border: 2px solid #268bd2; /* Solarized Blue border */
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Subtle shadow */
+  border: 2px solid #268bd2;
+  /* Solarized Blue border */
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  /* Subtle shadow */
 }
 
 .log-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background-color: #2aa198; /* Solarized Cyan background */
-  color: #fdf6e3; /* Solarized Light foreground */
+  background-color: #2aa198;
+  /* Solarized Cyan background */
+  color: #fdf6e3;
+  /* Solarized Light foreground */
   padding: 10px;
   border-radius: 4px 4px 0 0;
-  border-bottom: 2px solid #268bd2; /* Solarized Blue border */
+  border-bottom: 2px solid #268bd2;
+  /* Solarized Blue border */
 }
 
 .log-title {
-  font-size: 1.2rem; /* Smaller header text */
+  font-size: 1.2rem;
+  /* Smaller header text */
   margin: 0;
 }
 
@@ -154,36 +158,53 @@ export default {
 .log-container {
   flex-grow: 1;
   overflow-y: auto;
-  background-color: #fdf6e3; /* Solarized Light background */
-  color: #657b83; /* Solarized Light text color */
-  padding: 5px; /* Reduce padding */
-  font-family: 'Cascadia Code', Courier, monospace; /* Use Cascadia Code font */
-  font-size: 0.875rem; /* Font size */
-  line-height: 1.1; /* Line height */
-  font-weight: 550; /* Normal font weight */
+  max-height: calc(100svh - 170px);
+  /* Restrict the maximum height of the log container */
+  background-color: #fdf6e3;
+  /* Solarized Light background */
+  color: #657b83;
+  /* Solarized Light text color */
+  padding: 5px;
+  /* Reduce padding */
+  font-family: 'Cascadia Code', Courier, monospace;
+  /* Use Cascadia Code font */
+  font-size: 0.9rem;
+  /* Font size */
+  line-height: 1;
+  /* Line height */
+  font-weight: 550;
+  /* Normal font weight */
 }
 
 .log-entry {
-  padding: 0; /* Remove padding */
-  margin: 0; /* Remove margin */
+  padding: 0;
+  /* Remove padding */
+  margin: 0;
+  /* Remove margin */
   transition: background-color 0.3s;
 }
 
 .log-entry:hover {
-  background-color: #eee8d5; /* Solarized Light highlight */
+  background-color: #eee8d5;
+  /* Solarized Light highlight */
 }
 
 .log-entry.select-mode {
-  background-color: #eee8d5; /* Highlight in select mode */
-  cursor: text; /* Indicate selectable text */
+  background-color: #eee8d5;
+  /* Highlight in select mode */
+  cursor: text;
+  /* Indicate selectable text */
 }
 
 .q-btn {
-  background-color: #cb4b16 !important; /* Solarized Orange */
-  color: #fdf6e3 !important; /* Solarized Light foreground */
+  background-color: #cb4b16 !important;
+  /* Solarized Orange */
+  color: #fdf6e3 !important;
+  /* Solarized Light foreground */
 }
 
 .q-btn:hover {
-  background-color: #d33682 !important; /* Solarized Magenta */
+  background-color: #d33682 !important;
+  /* Solarized Magenta */
 }
 </style>
