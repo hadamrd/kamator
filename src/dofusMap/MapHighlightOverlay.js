@@ -20,7 +20,6 @@ export class MapHighlightOverlay extends CanvasLayer {
   }
 
   onDrawLayer(info) {
-    console.log(this.mapCoordIds);
     const ctx = info.canvas.getContext("2d");
     ctx.clearRect(0, 0, info.canvas.width, info.canvas.height); // clear the canvas
     Object.entries(this.mapCoordIds).forEach(([mapId, coords]) => {

@@ -29,14 +29,9 @@
     </div>
 
     <!-- Accounts and Characters List -->
-    <q-list v-else class="q-pa-md q-ma-md" bordered>
-      <q-expansion-item
-        v-for="account in accounts"
-        :key="account.id"
-        expand-separator
-        :label="account.login"
-        :caption="account.nickname"
-      >
+    <q-list v-else class="q-pa-md q-ma-md bordered modern-list scrollable-list">
+      <q-expansion-item v-for="account in accounts" :key="account.id" :label="account.login" :caption="account.nickname"
+        class="modern-item">
         <template v-slot:header>
           <q-item-section avatar>
             <q-avatar size="45px">
@@ -58,12 +53,7 @@
               <q-btn flat icon="delete" @click="deleteAccount(account.id)">
                 <q-tooltip>Delete Account</q-tooltip>
               </q-btn>
-              <q-btn
-                flat
-                icon="sync"
-                v-if="!fetchingAccounts[account.id]"
-                @click="fetchCharacters(account)"
-              >
+              <q-btn flat icon="sync" v-if="!fetchingAccounts[account.id]" @click="fetchCharacters(account)">
                 <q-tooltip>Fetch Characters</q-tooltip>
               </q-btn>
               <q-spinner round size="sm" v-else color="primary" />
@@ -71,74 +61,46 @@
           </q-item-section>
         </template>
         <q-list>
-          <q-item
-            v-for="character in getAccountCharacters(account.id)"
-            :key="character.id"
-            class="row items-center"
-            clickable
-          >
+          <q-item v-for="character in getAccountCharacters(account.id)" :key="character.id"
+            class="row items-center character-item" clickable>
             <q-item-section avatar>
               <q-avatar size="60px">
-                <img
-                  :src="getCharacterAvatar(character.breedId)"
-                  alt="Character Avatar"
-                />
+                <img :src="getCharacterAvatar(character.breedId)" alt="Character Avatar" />
               </q-avatar>
             </q-item-section>
             <q-item-section>
-              <q-item-label>{{ character.name }}</q-item-label>
+              <q-item-label>{{ character.name }} (LVL {{ character.level }})</q-item-label>
               <q-item-label caption>{{ character.serverName }}</q-item-label>
             </q-item-section>
-            <q-item-section class="col-auto">
-              <div>
-                <q-btn
-                  flat
-                  icon="eco"
-                  @click="quickRunFarm(account.id, character.id)"
-                >
+            <q-item-section class="col-auto q-pa-md">
+              <q-btn-group push>
+                <q-btn flat icon="eco" @click="quickRunFarm(account.id, character.id)">
                   <q-tooltip>Farm</q-tooltip>
                 </q-btn>
-                <q-btn
-                  flat
-                  icon="explore"
-                  @click="quickRunTreasureHunt(account.id, character.id)"
-                >
+                <q-btn flat icon="explore" @click="quickRunTreasureHunt(account.id, character.id)">
                   <q-tooltip>Treasure Hunt</q-tooltip>
                 </q-btn>
-                <q-btn
-                  flat
-                  icon="sports_martial_arts"
-                  @click="quickRunFight(account.id, character.id)"
-                >
+                <q-btn flat icon="sports_martial_arts" @click="quickRunFight(account.id, character.id)">
                   <q-tooltip>Fight</q-tooltip>
                 </q-btn>
-              </div>
+              </q-btn-group>
             </q-item-section>
           </q-item>
         </q-list>
       </q-expansion-item>
     </q-list>
-    <SecurityCodeInput
-      v-model="showSecurityCodeDialog"
-      :accountId="selectedAccount.id"
-      @success="onSecurityCodeSuccess()"
-    />
-    <QuickBotCreateDialog
-      v-model="showQuickBotCreateDialog"
-      :accountId="selectedAccount.id"
-      @doubleAuth="(response) => checkDoubleAuth(selectedAccount, response)"
-    />
-    <NicknameDialog
-      v-model="showNicknameDialog"
-      :accountId="selectedAccount.id"
-      :accountLogin="selectedAccount.login"
-      @doubleAuth="(response) => checkDoubleAuth(selectedAccount, response)"
-    />
+
+    <SecurityCodeInput v-model="showSecurityCodeDialog" :accountId="selectedAccount.id"
+      @success="onSecurityCodeSuccess()" />
+    <QuickBotCreateDialog v-model="showQuickBotCreateDialog" :accountId="selectedAccount.id"
+      @doubleAuth="(response) => checkDoubleAuth(selectedAccount, response)" />
+    <NicknameDialog v-model="showNicknameDialog" :accountId="selectedAccount.id" :accountLogin="selectedAccount.login"
+      @doubleAuth="(response) => checkDoubleAuth(selectedAccount, response)" />
   </q-card>
 </template>
 
 <script>
-import { ref } from "vue";
+import { ref, computed } from "vue";
 import { useGlobalStore } from "stores/globalVuesStore";
 import SecurityCodeInput from "components/forms/SecurityCodeInput.vue";
 import QuickBotCreateDialog from "components/forms/QuickBotCreateDialog.vue";
@@ -180,12 +142,12 @@ export default {
     const showNicknameDialog = ref(false);
     const showQuickBotCreateDialog = ref(false);
 
-    const getAccountCharacters = (accountId) => {
+    const getAccountCharacters = computed(() => (accountId) => {
       if (!characters.value) return [];
       return characters.value.filter(
         (character) => character.account === accountId
       );
-    };
+    });
 
     const newAccount = async () => {
       try {
@@ -336,3 +298,39 @@ export default {
   },
 };
 </script>
+
+<style scoped>
+.modern-list {
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.modern-item {
+  margin-bottom: 16px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  transition: box-shadow 0.3s ease;
+}
+
+.modern-item:hover {
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+.character-item {
+  margin-bottom: 8px;
+  border-bottom: 1px solid #eee;
+  padding: 8px 0;
+}
+
+.character-item:last-child {
+  border-bottom: none;
+}
+
+.scrollable-list {
+  max-height: 100%; /* Adjust the height as needed */
+  overflow: auto;
+}
+</style>

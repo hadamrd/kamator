@@ -5,7 +5,7 @@
         <q-menu v-model="menuOpen">
           <q-list style="min-width: 100px">
             <q-item
-              v-for="option in sessionStore.sessionTypesChoices"
+              v-for="option in sessionTypesChoices"
               :key="option.value"
               clickable
               @click="selectSessionType(option.value)"
@@ -30,7 +30,6 @@
 
 <script>
 import { ref } from "vue";
-import { useSessionStore } from "stores/sessions";
 import SessionList from "./SessionList.vue";
 import SoloFightSessionForm from "./forms/SoloFightSessionForm.vue";
 import TreasureHuntSessionForm from "./forms/TreasureHuntSessionForm.vue";
@@ -38,6 +37,7 @@ import FarmSessionForm from "./forms/FarmSessionForm.vue";
 import GroupFightSessionForm from "./forms/GroupFightSessionForm.vue";
 import MuleFightSessionForm from "./forms/MuleFightSessionForm.vue";
 import { useGlobalStore } from "stores/globalVuesStore";
+import { SessionTypeEnum, sessionTypesChoices } from "src/enums/sessionEnums";
 
 export default {
   name: "SessionsView",
@@ -50,20 +50,35 @@ export default {
     MuleFightSessionForm,
   },
   setup() {
-    const sessionStore = useSessionStore();
     const showSessionForm = ref(false);
     const selectedSessionType = ref(null);
     const globalStore = useGlobalStore();
     globalStore.header = "Sessions";
     const menuOpen = ref(false);
-    return { showSessionForm, sessionStore, selectedSessionType, menuOpen };
+    return { showSessionForm, selectedSessionType, menuOpen, sessionTypesChoices };
   },
   computed: {
     currentFormComponent() {
-      return this.sessionStore.getSessionTypeForm(this.selectedSessionType);
+      return this.getSessionTypeForm(this.selectedSessionType);
     },
   },
   methods: {
+    getSessionTypeForm(sessionType) {
+      switch (sessionType) {
+        case SessionTypeEnum.SOLO_FIGHT:
+          return "SoloFightSessionForm";
+        case SessionTypeEnum.TREASURE_HUNT:
+          return "TreasureHuntSessionForm";
+        case SessionTypeEnum.FARM:
+          return "FarmSessionForm";
+        case SessionTypeEnum.GROUP_FIGHT:
+          return "GroupFightSessionForm";
+        case SessionTypeEnum.MULE_FIGHT:
+          return "MuleFightSessionForm";
+        default:
+          return null;
+      }
+    },
     toggleMenu() {
       this.menuOpen = !!this.menuOpen;
     },

@@ -42,3 +42,53 @@ export const PathTypeEnum = {
   CyclicFarmPath: "CyclicFarmPath",
   CustomRandomFarmPath: "CustomRandomFarmPath",
 };
+
+export const sessionTypesChoices = [
+  {
+    value: SessionTypeEnum.SOLO_FIGHT,
+    label: "Solo Fight",
+  },
+  {
+    value: SessionTypeEnum.GROUP_FIGHT,
+    label: "Group Fight",
+  },
+  {
+    value: SessionTypeEnum.FARM,
+    label: "Farm",
+  },
+  {
+    value: SessionTypeEnum.SELL,
+    label: "Sell",
+  },
+  {
+    value: SessionTypeEnum.TREASURE_HUNT,
+    label: "Treasure Hunt",
+  },
+  {
+    value: SessionTypeEnum.MIXED,
+    label: "Mixed",
+  },
+  {
+    value: SessionTypeEnum.MULE_FIGHT,
+    label: "Mule Fight",
+  },
+  {
+    value: SessionTypeEnum.MULTIPLE_PATHS_FARM,
+    label: "Multiple Paths Farm",
+  },
+];
+
+export const sessionUnloadTypeChoices = [
+  {
+    value: UnloadTypeEnum.BANK,
+    label: "unload in bank",
+  },
+  {
+    value: UnloadTypeEnum.SELLER,
+    label: "unload in seller",
+  },
+  {
+    value: UnloadTypeEnum.STORAGE,
+    label: "unload in storage",
+  },
+];

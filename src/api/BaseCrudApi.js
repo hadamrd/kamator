@@ -33,7 +33,7 @@ class BaseCrudApi {
   async updateItem(id, newItem) {
     const response = await api.put(`${this.endpoint}/${id}`, newItem);
     if (response.status === 200) {
-      this.updateCacheOnUpdate(response.data);
+      this.updateCacheOnUpdate(id, newItem);
     }
     return response.data;
   }
@@ -46,36 +46,37 @@ class BaseCrudApi {
     return response.data;
   }
 
-  // Utility methods to update the cache
   updateCacheOnAdd(newItem) {
-    queryClient.setQueryData([this.cacheKey, "all"], (oldData) => {
-      if (!oldData) {
-        return [newItem];
-      }
-
-      const existingIndex = oldData.findIndex((item) => item.id === newItem.id);
-      if (existingIndex !== -1) {
-        // Update existing item
-        oldData[existingIndex] = newItem;
-        return [...oldData];
-      } else {
-        // Add new item
-        return [...oldData, newItem];
-      }
-    });
+    queryClient.setQueryData([this.cacheKey, newItem.id], newItem);
+    const allItems = queryClient.getQueryData([this.cacheKey, 'all']);
+    if (allItems) {
+      queryClient.setQueryData([this.cacheKey, 'all'], [...allItems, newItem]);
+    }
   }
 
-  updateCacheOnUpdate(updatedItem) {
-    queryClient.setQueryData([this.cacheKey, "all"], (oldData) => {
-      return oldData
-        ? oldData.map((item) =>
-            item.id === updatedItem.id ? updatedItem : item
-          )
-        : [updatedItem];
-    });
+  async updateCacheOnUpdate(itemId, newData) {
+    let updatedItem = queryClient.getQueryData([this.cacheKey, itemId]);
+    if (!updatedItem) {
+      updatedItem = await this.getItem(itemId);
+    } else {
+      updatedItem = { ...updatedItem, ...newData };
+    }
+    queryClient.setQueryData([this.cacheKey, itemId], newData);
+    const allItems = queryClient.getQueryData([this.cacheKey, 'all']);
+    if (allItems) {
+      const itemIndex = allItems.findIndex((it) => it && it.id === itemId);
+      if (itemIndex > -1) {
+        const newData = [...allItems];
+        newData[itemIndex] = updatedItem;
+        queryClient.setQueryData([this.cacheKey, 'all'], newData);
+      } else {
+        queryClient.setQueryData([this.cacheKey, 'all'], [...allItems, updatedItem]);
+      }
+    }
   }
 
   updateCacheOnDelete(id) {
+    queryClient.invalidateQueries([this.cacheKey, id]);
     queryClient.setQueryData([this.cacheKey, "all"], (oldData) => {
       return oldData ? oldData.filter((item) => item.id !== id) : [];
     });
@@ -86,6 +87,9 @@ class BaseCrudApi {
       queryKey: [this.cacheKey, "all"],
       queryFn: async () => {
         const data = await this.getItems();
+        data.forEach((item) => {
+          queryClient.setQueryData([this.cacheKey, item.id], item);
+        });
         return data;
       },
     });
@@ -95,10 +99,13 @@ class BaseCrudApi {
     return useQuery({
       queryKey: [this.cacheKey, itemId],
       queryFn: async () => {
-        const data = await this.getItem(itemId);
-        return data;
+        return await this.getItem(itemId);
       },
     });
+  }
+
+  clearAllCache() {
+    queryClient.invalidateQueries({ queryKey: this.cacheKey });
   }
 }
 
