@@ -98,6 +98,8 @@
             label="Select unload Type"
             option-label="label"
             option-value="value"
+            emit-value
+            map-options
           />
           <q-select
             dense
@@ -206,37 +208,27 @@ const validationSchema = yup.object({
     .min(1, "Minimum value is 1"),
   pathsList: yup.array().min(1, "At least one path must be selected"),
   unloadType: yup.string().required("Unload Type is required"),
-  seller: yup
-    .object()
-    .nullable()
-    .when("unloadType", {
-      is: UnloadTypeEnum.SELLER,
-      then: yup
-        .object()
-        .required("Seller is required when unloading to seller")
-        .test(
-          "different-account",
-          "Seller must belong to a different account than the character",
-          function (value) {
-            const { character } = this.parent;
-            if (character && value) {
-              return character.account !== value.account;
-            }
-            return true;
-          }
-        )
-        .test(
-          "same-server",
-          "Seller must be on the same server as the character",
-          function (value) {
-            const { character } = this.parent;
-            if (character && value) {
-              return character.serverName === value.serverName;
-            }
-            return true;
-          }
-        ),
-    }),
+  seller: yup.mixed().when('unloadType', {
+    is: UnloadTypeEnum.SELLER,
+    then: () => yup.object().nullable().required("Seller is required when unloading to seller")
+      .test(
+        "different-account",
+        "Seller must belong to a different account than the character",
+        function (value) {
+          const { character } = this.parent;
+          return !character || !value || character.account !== value.account;
+        }
+      )
+      .test(
+        "same-server",
+        "Seller must be on the same server as the character",
+        function (value) {
+          const { character } = this.parent;
+          return !character || !value || character.serverName === value.serverName;
+        }
+      ),
+    otherwise: () => yup.mixed().nullable()
+  }),
 });
 
 // Quasar configuration for handling field errors

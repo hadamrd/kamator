@@ -7,46 +7,50 @@
     <div class="q-pa-md q-ma-md">
       <q-card>
         <q-card-section class="bg-primary text-center text-white">
-          <div class="text-h6">Create Dofus Path</div>
+          <div class="text-h6">{{ isEditMode ? 'Edit' : 'Create' }} Dofus Path</div>
         </q-card-section>
-        <q-card-section class="q-pa-md q-ma-md">
-          <q-form @submit="submitForm">
+        <q-inner-loading :showing="isEditMode && isPathLoading">
+          <q-spinner-gears size="50px" color="primary" />
+        </q-inner-loading>
+        <q-card-section class="q-pa-md q-ma-md" :class="{ 'blur-content': isEditMode && isPathLoading }">
+          <q-form @submit="onSubmit">
             <q-input
               dense
-              v-model="path.id"
+              v-model="id"
               label="Name"
               class="q-mb-md"
-              required
+              v-bind="idAttrs"
+              :disable="isEditMode"
             />
             <q-select
               dense
               outlined
-              v-model="path.type"
-              :options="pathStore.pathsTypeChoices"
+              v-model="type"
+              :options="pathTypesOptions"
               label="Type"
               class="q-mb-md"
               emit-value
-              required
+              v-bind="typeAttrs"
             />
-            <div v-if="needStartVertex(path)">
+            <div v-if="needStartVertex">
               <q-input
                 dense
-                v-model="path.startMapId"
+                v-model="startMapId"
                 label="Start Map ID"
                 class="q-mb-md"
-                required
+                v-bind="startMapIdAttrs"
               />
               <q-input
                 dense
-                v-model="path.startZoneId"
+                v-model="startZoneId"
                 label="Start Zone ID"
                 class="q-mb-md"
-                required
+                v-bind="startZoneIdAttrs"
               />
             </div>
-            <div v-show="needMapSelection(path)">
+            <div v-if="needMapSelection">
               <q-chip
-                v-for="mapId in path.mapIds"
+                v-for="mapId in mapIds"
                 :key="mapId"
                 removable
                 @remove="removeMapFromSelection(mapId)"
@@ -69,9 +73,10 @@
                 dense
                 color="primary"
                 class="q-mr-md"
-                label="Confirm"
+                :label="isEditMode ? 'Update' : 'Create'"
+                :loading="isSubmitting"
               >
-                <q-icon name="check" />
+                <q-icon :name="isEditMode ? 'update' : 'add'" />
               </q-btn>
               <q-btn
                 flat
@@ -102,129 +107,209 @@
   </q-dialog>
 </template>
 
-<!-- eslint-disable no-unused-vars -->
-<script>
-import { ref } from "vue";
-import { usePathStore } from "src/stores/paths";
+<script setup>
+import { ref, computed, watch, onMounted } from "vue";
+import { useForm } from "vee-validate";
+import * as yup from "yup";
+import pathsApiInstance from "src/api/paths";
 import { PathTypeEnum } from "src/enums/sessionEnums";
 import DofusMap from "components/widgets/DofusMap.vue";
 
-export default {
-  name: "PathForm",
-  emits: ["update:modelValue"],
+const emit = defineEmits(["update:modelValue"]);
+
+const props = defineProps({
+  currPathId: {
+    type: String,
+    default: null,
+  },
+  modelValue: {
+    type: Boolean,
+    default: false,
+  },
+});
+
+const isEditMode = computed(() => !!props.currPathId);
+
+// Fetch data using API instances
+const { data: pathTypes, isLoading: isPathTypesLoading } = pathsApiInstance.useGetPathsTypeChoices();
+
+const {
+  data: currentPath,
+  isLoading: isPathLoading,
+  error: pathError
+} = isEditMode.value
+  ? pathsApiInstance.useGetItem(props.currPathId)
+  : { data: ref(null), isLoading: ref(false), error: ref(null) };
+
+const { mutate: addPath, isLoading: isAddSubmitting } = pathsApiInstance.useAddItem();
+const { mutate: updatePath, isLoading: isUpdateSubmitting } = pathsApiInstance.useUpdateItem();
+
+const isSubmitting = computed(() => isAddSubmitting || isUpdateSubmitting);
+
+// Form validation schema
+const validationSchema = yup.object({
+  id: yup.string().required("Name is required"),
+  type: yup.string().required("Type is required"),
+  startMapId: yup.number().when('type', {
+    is: (val) => val === PathTypeEnum.RandomSubAreaFarmPath || val === PathTypeEnum.RandomAreaFarmPath,
+    then: () => yup.number().required("Start Map ID is required"),
+    otherwise: () => yup.number().nullable()
+  }),
+  startZoneId: yup.number().when('type', {
+    is: (val) => val === PathTypeEnum.RandomSubAreaFarmPath || val === PathTypeEnum.RandomAreaFarmPath,
+    then: () => yup.number().required("Start Zone ID is required"),
+    otherwise: () => yup.number().nullable()
+  }),
+  mapIds: yup.array().when('type', {
+    is: PathTypeEnum.CustomRandomFarmPath,
+    then: () => yup.array().min(1, "At least one map must be selected"),
+    otherwise: () => yup.array()
+  }),
+});
+
+// Use the form with initial values and the validation schema
+const { handleSubmit, errors, resetForm, defineField } = useForm({
+  validationSchema,
+  initialValues: {
+    id: null,
+    type: PathTypeEnum.CustomRandomFarmPath,
+    startMapId: null,
+    startZoneId: null,
+    mapIds: [],
+    allowedTransitions: [],
+    forbiddenSubAreas: [],
+  },
+});
+
+// Define fields with VeeValidate and Quasar configuration
+const quasarConfig = (state) => ({
   props: {
-    currPathId: {
-      type: String,
-      default: null,
-    },
-    modelValue: {
-      type: Boolean,
-      default: false,
-    },
+    error: !!state.errors[0],
+    "error-message": state.errors[0],
   },
-  components: {
-    DofusMap,
+});
+
+const [id, idAttrs] = defineField("id", quasarConfig);
+const [type, typeAttrs] = defineField("type", quasarConfig);
+const [startMapId, startMapIdAttrs] = defineField("startMapId", quasarConfig);
+const [startZoneId, startZoneIdAttrs] = defineField("startZoneId", quasarConfig);
+const [mapIds, mapIdsAttrs] = defineField("mapIds", quasarConfig);
+
+const showDofusMap = ref(false);
+
+const initialSelectedResources = [
+  {
+    name: "Aquajou",
+    id: 17991,
+    skillName: "Bûcheron",
+    skillId: "2",
+    dofusMapId: "65",
   },
-  setup() {
-    const initialSelectedResources = [
-      {
-        name: "Aquajou",
-        id: 17991,
-        skillName: "Bûcheron",
-        skillId: "2",
-        dofusMapId: "65",
-      },
-      {
-        name: "Fer",
-        id: 312,
-        skillName: "Mineur",
-        skillId: "24",
-        dofusMapId: "68",
-      },
-      {
-        name: "Cuivre",
-        id: 441,
-        skillName: "Mineur",
-        skillId: "24",
-        dofusMapId: "67",
-      },
-    ];
-    const pathStore = usePathStore();
-    const pathTypes = ref([]);
-    const path = ref({
-      id: null,
-      type: PathTypeEnum.CustomRandomFarmPath,
-      startMapId: null,
-      startZoneId: null,
-      mapIds: [],
+  {
+    name: "Fer",
+    id: 312,
+    skillName: "Mineur",
+    skillId: "24",
+    dofusMapId: "68",
+  },
+  {
+    name: "Cuivre",
+    id: 441,
+    skillName: "Mineur",
+    skillId: "24",
+    dofusMapId: "67",
+  },
+];
+
+const pathTypesOptions = computed(() => {
+  if (isPathTypesLoading.value) {
+    return []; // Return an empty array while loading
+  }
+  return pathTypes?.value || []; // Use optional chaining
+});
+
+const needStartVertex = computed(() =>
+  type.value === PathTypeEnum.RandomSubAreaFarmPath || type.value === PathTypeEnum.RandomAreaFarmPath
+);
+
+const needMapSelection = computed(() => type.value === PathTypeEnum.CustomRandomFarmPath);
+
+const onSubmit = handleSubmit(async (values) => {
+  try {
+    const path = {
+      ...values,
       allowedTransitions: [],
       forbiddenSubAreas: [],
-    });
-    return {
-      initialSelectedResources,
-      pathTypes,
-      pathStore,
-      path,
-      PathTypeEnum,
-      showDofusMap: ref(false),
     };
-  },
-  async created() {
-    await this.pathStore.getPaths();
-    await this.pathStore.getPathsTypeChoices();
-    if (this.currPathId) {
-      var existingPath = this.pathStore.getPathsById(this.currPathId);
-      if (existingPath) {
-        this.path = existingPath;
-      } else {
-        console.log(`Path with id ${this.currPathId} not found`);
-      }
+
+    if (isEditMode.value) {
+      await updatePath({ id: props.currPathId, newItem: path });
+    } else {
+      await addPath(path);
     }
-  },
-  methods: {
-    onMapsSelected(selectedMapsIds) {
-      this.path.mapIds = selectedMapsIds;
-    },
-    submitForm() {
-      console.log("Path Created:", this.path);
-      this.pathStore.addPath(this.path);
-      this.$emit("update:modelValue", false);
-    },
-    needStartVertex(path) {
-      return (
-        path.type == PathTypeEnum.RandomSubAreaFarmPath ||
-        path.type == PathTypeEnum.RandomAreaFarmPath
-      );
-    },
-    needMapSelection(path) {
-      return path.type == PathTypeEnum.CustomRandomFarmPath;
-    },
-    removeMapFromSelection(mapId) {
-      this.path.mapIds = this.path.mapIds.filter((id) => id !== mapId);
-    },
-    closeWindow() {
-      this.path = {
-        id: null,
-        type: null,
-        startMapId: null,
-        startZoneId: null,
-        mapIds: [],
-        allowedTransitions: [],
-        forbiddenSubAreas: [],
-      };
-      this.$emit("update:modelValue", false);
-    },
-    closeDofusMap() {
-      this.showDofusMap = false;
-    },
-    openDofusMap() {
-      this.showDofusMap = true;
-    },
-    handleUpdate(value) {
-      this.$emit("update:modelValue", value);
-    },
-  },
+    closeWindow();
+  } catch (error) {
+    console.error("Error submitting form:", error);
+    // Handle the error, maybe show it to the user
+  }
+});
+
+const removeMapFromSelection = (mapIdToRemove) => {
+  mapIds.value = mapIds.value.filter((id) => id !== mapIdToRemove);
 };
+
+const closeWindow = () => {
+  resetForm();
+  emit("update:modelValue", false);
+};
+
+const openDofusMap = () => {
+  showDofusMap.value = true;
+};
+
+const handleUpdate = (value) => {
+  emit("update:modelValue", value);
+};
+
+const onMapsSelected = (selectedMapsIds) => {
+  mapIds.value = selectedMapsIds;
+};
+
+// Watch for changes in the current path when in edit mode
+watch(currentPath, (newPath) => {
+  if (newPath && isEditMode.value) {
+    resetForm({
+      values: {
+        id: newPath.id,
+        type: newPath.type,
+        startMapId: newPath.startMapId,
+        startZoneId: newPath.startZoneId,
+        mapIds: newPath.mapIds,
+        allowedTransitions: newPath.allowedTransitions,
+        forbiddenSubAreas: newPath.forbiddenSubAreas,
+      },
+    });
+  }
+}, { immediate: true });
+
+// Error handling for path loading
+watch(pathError, (error) => {
+  if (error && isEditMode.value) {
+    console.error("Error loading path:", error);
+    // You might want to show an error message to the user here
+  }
+});
+
+onMounted(() => {
+  if (!isEditMode.value) {
+    resetForm();
+  }
+});
 </script>
 
-<style scoped></style>
+<style scoped>
+.blur-content {
+  filter: blur(2px);
+  pointer-events: none;
+}
+</style>

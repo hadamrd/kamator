@@ -147,7 +147,6 @@ export default {
       data: accounts,
       isError: isAccountsError,
       error: accountsError,
-      refetch: refetchAccounts,
     } = accountsApiInstance.useGetItems();
 
     const {
@@ -155,7 +154,6 @@ export default {
       data: characters,
       isError: isCharactersError,
       error: charactersError,
-      refetch: refetchCharacters,
     } = charactersApiInstance.useGetItems();
 
     const {
@@ -163,7 +161,6 @@ export default {
       data: sessions,
       isError: isSessionsError,
       error: sessionsError,
-      refetch: refetchSessions,
     } = sessionsApiInstance.useGetItems();
 
     const {
@@ -171,7 +168,6 @@ export default {
       data: sessionRuns,
       isError: isSessionRunsError,
       error: sessionRunsError,
-      refetch: refetchSessionRuns,
     } = sessionRunsApiInstance.useGetItems();
 
     const { mutate: deleteSessionMutation, isLoading: isDeleting } =

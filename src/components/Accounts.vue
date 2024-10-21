@@ -177,6 +177,8 @@ export default {
       refetch: refetchCharacters,
     } = charactersApiInstance.useGetItems();
 
+    const { mutate: deleteAccountMutation, isLoading: isDeleting } = accountsApiInstance.useDeleteItem();
+
     const showSecurityCodeDialog = ref(false);
     const selectedAccount = ref({ id: 0, login: "" });
     const fetchingAccounts = ref({});
@@ -205,12 +207,12 @@ export default {
 
     const viewAccount = (accountId) => {
       console.log("View account", accountId);
-      // Logic to view account details
+      // TODO: Logic to view account details
     };
 
     const deleteAccount = async (accountId) => {
       try {
-        await accountsApiInstance.deleteItem(accountId);
+        await deleteAccountMutation(accountId);
         Notify.create({
           type: "positive",
           message: "Account deleted successfully!",
@@ -288,13 +290,14 @@ export default {
       getAccountCharacters,
       fetchingAccounts,
       viewAccount,
-      deleteAccount,
       fetchCharacters,
       showNicknameDialog,
       quickBotCreate,
       showQuickBotCreateDialog,
       newAccount,
       checkDoubleAuth,
+      deleteAccount,
+      isDeleting,
     };
   },
   methods: {
