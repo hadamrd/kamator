@@ -5,8 +5,7 @@ import Dashboard from "components/Dashboard.vue";
 import Notifications from "components/Notifications.vue";
 import DofusMap from "components/widgets/DofusMap.vue";
 import LogViewer from "components/widgets/LogViewer.vue";
-import SessionRunDetails from "components/SessionRunDetails.vue"
-
+import SessionRunDetails from "components/SessionRunDetails.vue";
 
 const routes = [
   {
@@ -54,8 +53,8 @@ const routes = [
         name: "SessionRunDetails",
         props: true,
         path: "/session/:sessionId/sessionRun/:sessionRunId",
-        component: SessionRunDetails
-      }
+        component: SessionRunDetails,
+      },
     ],
   },
   {

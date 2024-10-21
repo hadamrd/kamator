@@ -1,5 +1,6 @@
 <template>
   <div class="q-pa-md q-gutter-md">
+    <!-- Session Info Card -->
     <q-card>
       <q-card-section>
         <div v-if="isSessionLoading" class="loading-container">
@@ -12,18 +13,22 @@
           <q-item-label>{{ sessionError.message }}</q-item-label>
         </div>
         <div v-else class="session-container">
-          <q-avatar class="q-mr-md">
-            <img :src="getSessionImage(session)" />
+          <q-avatar class="q-mr-md" size="75px">
+            <img :src="getCharacterAvatar(session)" />
           </q-avatar>
           <div>
-            <q-item-label class="text-h6">{{ session.id }}</q-item-label>
-            <q-item-label>{{ session.character.serverName }}</q-item-label>
-            <q-item-label>{{ session.type }}</q-item-label>
+            <q-item-label class="text-h6">{{ getSessionCharacter(session)?.name }} lvl {{ sessionRun?.currentLevel }}</q-item-label>
+            <q-item-label>Server : {{ getSessionCharacter(session)?.serverName }}</q-item-label>
+            <q-item-label>Activity : {{ session.type }}</q-item-label>
+            <q-item-label class="text-h7">Current Status: <span class="highlight">{{ sessionRun?.status }}</span></q-item-label>
+            <q-item-label class="text-h8">Current MapId: <span class="highlight">{{ sessionRun?.currentMapId }}</span></q-item-label>
           </div>
         </div>
       </q-card-section>
     </q-card>
 
+
+    <!-- Session Run Info Card -->
     <q-card v-if="!isSessionLoading && !isSessionError">
       <q-card-section>
         <div v-if="isSessionRunLoading" class="loading-container">
@@ -37,7 +42,7 @@
         </div>
         <div v-else class="details-grid">
           <div class="details-column">
-            <q-item-label>Earned Kamas: <span class="highlight">{{ sessionRun.earnedKamas }}</span></q-item-label>
+            <q-item-label>Earned Net Kamas: <span class="highlight">{{ sessionRun.earnedKamas }}</span></q-item-label>
             <q-item-label>Earned Levels: <span class="highlight">{{ sessionRun.earnedLevels }}</span></q-item-label>
             <q-item-label>Fights Done: <span class="highlight">{{ sessionRun.nbrFightsDone }}</span></q-item-label>
             <q-item-label>Treasures Hunts Done: <span class="highlight">{{ sessionRun.nbrTreasuresHuntsDone }}</span></q-item-label>
@@ -54,80 +59,71 @@
       </q-card-section>
     </q-card>
 
-    <q-tabs v-model="currentTab" class="q-mt-md">
-      <q-tab name="actions" label="Actions" />
-      <q-tab name="log" label="Log" />
-    </q-tabs>
-
-    <q-tab-panels v-model="currentTab" animated>
-      <q-tab-panel name="actions">
-        <q-list bordered> <!-- Actions list will be implemented later --> </q-list>
-      </q-tab-panel>
-      <q-tab-panel name="log">
-        <!-- Log display will be implemented later -->
-      </q-tab-panel>
-    </q-tab-panels>
+    <!-- Interactive Graphs -->
+    <q-card v-if="!isSessionLoading && !isSessionError">
+      <q-card-section>
+        <q-item-label class="text-h6">Progress Over Time</q-item-label>
+        <ProgressChart :sessionRunId="sessionRunId" />
+      </q-card-section>
+    </q-card>
   </div>
 </template>
 
-<script>
-import { ref } from 'vue';
-import sessionRunsApiInstance from 'src/api/sessionRuns';
-import sessionApiInstance from 'src/api/session';
+<script setup>
+import sessionRunsApiInstance from "src/api/sessionRuns";
+import sessionApiInstance from "src/api/session";
+import charactersApiInstance from "src/api/characters";
+import ProgressChart from "components/widgets/ProgressChart.vue";
 
-export default {
-  name: 'SessionRunDetails',
-  props: {
-    sessionRunId: {
-      type: String,
-      required: true,
-    },
-    sessionId: {
-      type: String,
-      required: true,
-    },
+const props = defineProps({
+  sessionRunId: {
+    type: String,
+    required: true,
   },
-  setup(props) {
-    const {
-      isLoading: isSessionRunLoading,
-      isError: isSessionRunError,
-      data: sessionRun,
-      error: sessionRunError,
-    } = sessionRunsApiInstance.useGetItem(props.sessionRunId);
-  
-    const {
-      isLoading: isSessionLoading,
-      isError: isSessionError,
-      data: session,
-      error: sessionError,
-    } = sessionApiInstance.useGetItem(props.sessionId);
-
-    const currentTab = ref('actions');
-
-    const getSessionImage = (session) => {
-      return sessionApiInstance.getSessionImage(session);
-    };
-
-    const formatJobLevels = (jobLevels) => {
-      return Object.entries(jobLevels)
-        .map(([jobId, level]) => `Job ${jobId}: ${level} levels`)
-        .join(', ');
-    };
-
-    return {
-      isSessionRunLoading,
-      isSessionRunError,
-      sessionRun,
-      sessionRunError,
-      isSessionLoading,
-      isSessionError,
-      session,
-      sessionError,
-      currentTab,
-      getSessionImage,
-      formatJobLevels,
-    };
+  sessionId: {
+    type: String,
+    required: true,
   },
+});
+
+const {
+  isLoading: isSessionRunLoading,
+  isError: isSessionRunError,
+  data: sessionRun,
+  error: sessionRunError,
+} = sessionRunsApiInstance.useGetItem(props.sessionRunId);
+
+const {
+  isLoading: isSessionLoading,
+  isError: isSessionError,
+  data: session,
+  error: sessionError,
+} = sessionApiInstance.useGetItem(props.sessionId);
+
+const {
+  isLoading: isCharactersLoading,
+  data: characters,
+  isError: isCharactersError,
+  error: charactersError,
+} = charactersApiInstance.useGetItems();
+
+const getSessionCharacter = (session) => {
+  if (!characters.value) return null;
+  return characters.value.find((character) => character.id == session.character);
+};
+
+const getCharacterAvatar = (session) => {
+  const character = getSessionCharacter(session);
+  return new URL(
+    `/src/assets/classes/symbol_${character.breedId}.png`,
+    import.meta.url
+  ).href;
+};
+
+const formatJobLevels = (jobLevels) => {
+  return Object.entries(jobLevels)
+    .map(([jobId, level]) => `Job ${jobId}: ${level} levels`)
+    .join(", ");
 };
 </script>
 

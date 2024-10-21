@@ -30,8 +30,13 @@
 
     <!-- Accounts and Characters List -->
     <q-list v-else class="q-pa-md q-ma-md bordered modern-list scrollable-list">
-      <q-expansion-item v-for="account in accounts" :key="account.id" :label="account.login" :caption="account.nickname"
-        class="modern-item">
+      <q-expansion-item
+        v-for="account in accounts"
+        :key="account.id"
+        :label="account.login"
+        :caption="account.nickname"
+        class="modern-item"
+      >
         <template v-slot:header>
           <q-item-section avatar>
             <q-avatar size="45px">
@@ -53,7 +58,12 @@
               <q-btn flat icon="delete" @click="deleteAccount(account.id)">
                 <q-tooltip>Delete Account</q-tooltip>
               </q-btn>
-              <q-btn flat icon="sync" v-if="!fetchingAccounts[account.id]" @click="fetchCharacters(account)">
+              <q-btn
+                flat
+                icon="sync"
+                v-if="!fetchingAccounts[account.id]"
+                @click="fetchCharacters(account)"
+              >
                 <q-tooltip>Fetch Characters</q-tooltip>
               </q-btn>
               <q-spinner round size="sm" v-else color="primary" />
@@ -61,26 +71,47 @@
           </q-item-section>
         </template>
         <q-list>
-          <q-item v-for="character in getAccountCharacters(account.id)" :key="character.id"
-            class="row items-center character-item" clickable>
+          <q-item
+            v-for="character in getAccountCharacters(account.id)"
+            :key="character.id"
+            class="row items-center character-item"
+            clickable
+          >
             <q-item-section avatar>
               <q-avatar size="60px">
-                <img :src="getCharacterAvatar(character.breedId)" alt="Character Avatar" />
+                <img
+                  :src="getCharacterAvatar(character.breedId)"
+                  alt="Character Avatar"
+                />
               </q-avatar>
             </q-item-section>
             <q-item-section>
-              <q-item-label>{{ character.name }} (LVL {{ character.level }})</q-item-label>
+              <q-item-label
+                >{{ character.name }} (LVL {{ character.level }})</q-item-label
+              >
               <q-item-label caption>{{ character.serverName }}</q-item-label>
             </q-item-section>
             <q-item-section class="col-auto q-pa-md">
               <q-btn-group push>
-                <q-btn flat icon="eco" @click="quickRunFarm(account.id, character.id)">
+                <q-btn
+                  flat
+                  icon="eco"
+                  @click="quickRunFarm(account.id, character.id)"
+                >
                   <q-tooltip>Farm</q-tooltip>
                 </q-btn>
-                <q-btn flat icon="explore" @click="quickRunTreasureHunt(account.id, character.id)">
+                <q-btn
+                  flat
+                  icon="explore"
+                  @click="quickRunTreasureHunt(account.id, character.id)"
+                >
                   <q-tooltip>Treasure Hunt</q-tooltip>
                 </q-btn>
-                <q-btn flat icon="sports_martial_arts" @click="quickRunFight(account.id, character.id)">
+                <q-btn
+                  flat
+                  icon="sports_martial_arts"
+                  @click="quickRunFight(account.id, character.id)"
+                >
                   <q-tooltip>Fight</q-tooltip>
                 </q-btn>
               </q-btn-group>
@@ -90,12 +121,22 @@
       </q-expansion-item>
     </q-list>
 
-    <SecurityCodeInput v-model="showSecurityCodeDialog" :accountId="selectedAccount.id"
-      @success="onSecurityCodeSuccess()" />
-    <QuickBotCreateDialog v-model="showQuickBotCreateDialog" :accountId="selectedAccount.id"
-      @doubleAuth="(response) => checkDoubleAuth(selectedAccount, response)" />
-    <NicknameDialog v-model="showNicknameDialog" :accountId="selectedAccount.id" :accountLogin="selectedAccount.login"
-      @doubleAuth="(response) => checkDoubleAuth(selectedAccount, response)" />
+    <SecurityCodeInput
+      v-model="showSecurityCodeDialog"
+      :accountId="selectedAccount.id"
+      @success="(response) => onSecurityCodeSuccess(selectedAccount, response)"
+    />
+    <QuickBotCreateDialog
+      v-model="showQuickBotCreateDialog"
+      :accountId="selectedAccount.id"
+      @doubleAuth="(response) => checkDoubleAuth(selectedAccount, response)"
+    />
+    <NicknameDialog
+      v-model="showNicknameDialog"
+      :accountId="selectedAccount.id"
+      :accountLogin="selectedAccount.login"
+      @doubleAuth="(response) => checkDoubleAuth(selectedAccount, response)"
+    />
   </q-card>
 </template>
 
@@ -169,8 +210,7 @@ export default {
 
     const deleteAccount = async (accountId) => {
       try {
-        await accountsApiInstance.delete(accountId);
-        refetchAccounts(); // Refresh the account list
+        await accountsApiInstance.deleteItem(accountId);
         Notify.create({
           type: "positive",
           message: "Account deleted successfully!",
@@ -291,9 +331,9 @@ export default {
         import.meta.url
       ).href;
     },
-    onSecurityCodeSuccess() {
+    onSecurityCodeSuccess(selectedAccount, response) {
       this.showSecurityCodeDialog = false;
-      this.showNicknameDialog = true;
+      this.showNicknameDialog = response.data.choose_nickname;
     },
   },
 };

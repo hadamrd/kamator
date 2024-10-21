@@ -101,7 +101,12 @@ import { ref } from "vue";
 import { useGameDataStore } from "stores/gameData";
 
 export default {
-  name: "JobResourceSelector",
+  name: "JobResourceSelector",props: {
+    initialFilters: {
+      type: Array,
+      default: () => []
+    }
+  },
   emits: ["updateJobFilter"],
   setup() {
     const gameDataStore = useGameDataStore();
@@ -253,4 +258,3 @@ export default {
   /* Optional: Adds rounded corners to the border */
 }
 </style>
-../stores/gameData

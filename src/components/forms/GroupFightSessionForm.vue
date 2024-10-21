@@ -3,16 +3,19 @@
     <div class="q-pa-md q-ma-md min-width-800px">
       <q-card>
         <q-card-section class="bg-primary text-center text-white">
-          <div class="text-h6">Group fight</div>
+          <div class="text-h6">{{ isEditMode ? 'Edit' : 'Create' }} Group Fight</div>
         </q-card-section>
-        <q-card-section class="q-pa-md q-ma-md">
+        <q-inner-loading :showing="isEditMode && isASessionLoading">
+          <q-spinner-gears size="50px" color="primary" />
+        </q-inner-loading>
+        <q-card-section class="q-pa-md q-ma-md" :class="{ 'blur-content': isEditMode && isASessionLoading }">
           <q-input
             dense
             v-model="id"
             label="Session ID"
             class="q-mb-md"
-            :rules="[validateID]"
-            required
+            v-bind="idAttrs"
+            :disable="isEditMode"
           />
           <q-input
             type="number"
@@ -20,42 +23,38 @@
             v-model.number="monsterLvlCoefDiff"
             label="Monster Coeff Diff"
             class="q-mb-md"
-            required
-          >
-          </q-input>
+            v-bind="monsterLvlCoefDiffAttrs"
+          />
           <q-input
             type="number"
             step="1"
             v-model.number="fightsPerMinute"
             label="Fights per minute"
             class="q-mb-md"
-            required
-          >
-          </q-input>
+            v-bind="fightsPerMinuteAttrs"
+          />
           <q-select
             class="q-mb-md"
             dense
             outlined
             bottom-slots
             v-model="character"
+            v-bind="characterAttrs"
             use-input
             :options="characterSelectOptions"
-            @filter="filterFn"
-            @input="clearFilter"
-            label="character"
+            @filter="filterCharacters"
+            label="Character"
             option-label="name"
+            :loading="isCharactersLoading"
           >
-            <template v-slot:hint
-              >Character that will lead the bots party.</template
-            >
+            <template v-slot:hint>Character that will lead the bots party.</template>
             <template v-slot:append>
               <q-icon
                 name="close"
                 class="cursor-pointer"
-                icon="clear"
                 @click.stop.prevent="character = null"
                 :disable="!character"
-              ></q-icon>
+              />
             </template>
           </q-select>
           <q-select
@@ -63,38 +62,34 @@
             class="q-mb-md"
             outlined
             bottom-slots
-            ref="select"
             v-model="followers"
+            v-bind="followersAttrs"
             use-input
             multiple
             emit-value
             input-debounce="0"
-            label="select mules"
+            label="Select mules"
             option-label="name"
             :options="followersSelectOptions"
-            @filter="filterFn"
-            @input="clearFilter"
+            @filter="filterFollowers"
+            :loading="isCharactersLoading"
           >
-            <template v-slot:hint
-              >Characters that will follow the leader.</template
-            >
+            <template v-slot:hint>Characters that will follow the leader.</template>
             <template v-slot:selected-item="{ opt }">
               <q-chip
                 dense
                 class="q-mr-xs"
                 removable
-                @remove="removeOption(opt)"
-                >{{ opt.name }}</q-chip
-              >
+                @remove="removeFollower(opt)"
+              >{{ opt.name }}</q-chip>
             </template>
             <template v-slot:append>
               <q-icon
                 name="close"
                 class="cursor-pointer"
-                icon="clear"
                 @click.stop.prevent="followers = []"
                 :disable="followers.length < 1"
-              ></q-icon>
+              />
             </template>
           </q-select>
           <q-select
@@ -102,15 +97,14 @@
             dense
             outlined
             bottom-slots
-            v-model="selectedUnloadType"
-            :options="sessionStore.sessionUnloadTypeChoices"
+            v-model="unloadType"
+            v-bind="unloadTypeAttrs"
+            :options="sessionUnloadTypeChoices"
             label="Select unload Type"
             option-label="label"
             option-value="value"
           >
-            <template v-slot:hint
-              >How would you like the bot to unload when full.</template
-            >
+            <template v-slot:hint>How would you like the bot to unload when full.</template>
           </q-select>
           <q-select
             class="q-mb-md"
@@ -118,39 +112,37 @@
             outlined
             bottom-slots
             v-model="path"
-            :options="pathStore.paths"
+            v-bind="pathAttrs"
+            :options="paths"
             label="Select farm path"
             option-label="id"
+            :loading="isPathsLoading"
           >
             <template v-slot:hint>The path that the bot will follow.</template>
           </q-select>
-          <q-separator />
           <q-select
             dense
             outlined
             bottom-slots
             v-model="seller"
+            v-bind="sellerAttrs"
             :options="sellerSelectOptions"
-            @filter="filterFn"
-            @input="clearFilter"
+            @filter="filterSellers"
             use-input
-            @change="clearInput"
             label="Seller"
             option-label="name"
             v-show="unloadType === UnloadTypeEnum.SELLER"
+            :loading="isCharactersLoading"
           >
             <template v-slot:append>
               <q-icon
                 name="close"
                 class="cursor-pointer"
-                icon="clear"
                 @click.stop.prevent="seller = null"
                 :disable="!seller"
-              ></q-icon>
+              />
             </template>
-            <template v-slot:hint
-              >Character that will collect the resources.</template
-            >
+            <template v-slot:hint>Character that will collect the resources.</template>
           </q-select>
         </q-card-section>
         <q-card-actions align="center">
@@ -159,10 +151,12 @@
             dense
             color="primary"
             class="q-mr-md"
-            label="Confirm"
-            @click="confirm"
-            ><q-icon name="check"
-          /></q-btn>
+            :label="isEditMode ? 'Update' : 'Create'"
+            @click="onSubmit"
+            :loading="isSubmitting"
+          >
+            <q-icon :name="isEditMode ? 'update' : 'add'" />
+          </q-btn>
           <q-btn
             flat
             dense
@@ -170,300 +164,347 @@
             class="q-ml-md"
             label="Cancel"
             @click="closeModal"
-            ><q-icon name="close"
-          /></q-btn>
+          >
+            <q-icon name="close" />
+          </q-btn>
         </q-card-actions>
       </q-card>
     </div>
   </q-dialog>
 </template>
-<!-- eslint-disable no-unused-vars -->
-<script>
-import { ref } from "vue";
-import { useAccountStore } from "stores/accounts";
-import { useSessionStore } from "stores/sessions";
-import { usePathStore } from "stores/paths";
-import { SessionTypeEnum, UnloadTypeEnum } from "src/enums/sessionEnums";
+
+<script setup>
+import { ref, computed, watch, onMounted } from "vue";
+import { useForm } from "vee-validate";
+import * as yup from "yup";
 import { v4 as uuidv4 } from "uuid";
+import { SessionTypeEnum, UnloadTypeEnum } from "src/enums/sessionEnums";
+import sessionsApiInstance from "src/api/session";
+import pathsApiInstance from "src/api/paths";
+import charactersApiInstance from "src/api/characters";
 
-export default {
-  name: "GroupFightSessionForm",
-  setup() {
-    const sessionStore = useSessionStore();
-    const accountsStore = useAccountStore();
-    const pathStore = usePathStore();
-    return {
-      sessionStore,
-      pathStore,
-      session: ref(null),
-      characters: ref([]),
-      followers: ref([]),
-      filterValue: ref(""),
-      id: ref(null),
-      seller: ref(null),
-      character: ref(null),
-      accountsStore,
-      UnloadTypeEnum,
-      unloadType: ref(UnloadTypeEnum.BANK),
-      SessionTypeEnum,
-      monsterLvlCoefDiff: ref(4),
-      fightsPerMinute: ref(1),
-      path: ref(null),
-    };
+const emit = defineEmits(["update:modelValue", "finished"]);
+
+const props = defineProps({
+  currSessionId: {
+    type: String,
+    default: null,
   },
-  async created() {
-    this.characters = await this.accountsStore.getCharacters();
-    this.paths = await this.pathStore.getPaths();
-    let asession = await this.sessionStore.getSession(this.currSessionId);
-    console.log(asession);
-    if (!asession) {
-      this.id = uuidv4();
-      this.monsterLvlCoefDiff = 4;
-      this.character = this.characters[0];
-      this.path = this.paths[0];
-      this.unloadType = UnloadTypeEnum.BANK;
-      this.seller = null;
-      this.followers = [];
-      this.fightsPerMinute = 1;
-    } else {
-      this.id = asession.id;
-      this.unloadType = asession.unloadType;
-      this.monsterLvlCoefDiff = asession.monsterLvlCoefDiff;
-      this.path = asession.path;
-      this.character = asession.character;
-      this.followers = asession.followers;
-      this.fightsPerMinute = asession.fightsPerMinute;
-    }
-  },
-  computed: {
-    characterSelectOptions() {
-      if (!this.characters || !this.seller) {
-        return this.characters || [];
-      }
+});
 
-      return this.characters.filter((character) => {
-        const notSameAccount = character.account !== this.seller.account;
-        const notTheSellerItself = character.id !== this.seller.id;
-        const sameServer = this.seller.serverName === character.serverName;
+const isEditMode = computed(() => !!props.currSessionId);
 
-        return sameServer && notSameAccount && notTheSellerItself;
-      });
-    },
-    followersSelectOptions() {
-      if (!this.characters || !this.character) {
-        return [];
-      }
+// Fetch data using API instances
+const { data: characters, isLoading: isCharactersLoading } = charactersApiInstance.useGetItems();
+const { data: paths, isLoading: isPathsLoading } = pathsApiInstance.useGetItems();
 
-      return this.characters.filter((follower) => {
-        const notSameCharacterAccount =
-          follower.account !== this.character.account;
-        const notSameSellerAccount =
-          !this.seller || follower.account !== this.seller.account;
-        const sameCharacterServer =
-          follower.serverName === this.character.serverName;
+// Only fetch session data if we're in edit mode
+const {
+  data: aSession,
+  isLoading: isASessionLoading,
+  error: aSessionError
+} = isEditMode.value
+  ? sessionsApiInstance.useGetItem(props.currSessionId)
+  : { data: ref(null), isLoading: ref(false), error: ref(null) };
 
-        return (
-          sameCharacterServer && notSameCharacterAccount && notSameSellerAccount
-        );
-      });
-    },
-    sellerSelectOptions() {
-      if (!this.characters || !this.character) {
-        return this.characters || [];
-      }
+const { mutate: addSession, isLoading: isAddSubmitting } = sessionsApiInstance.useAddItem();
+const { mutate: updateSession, isLoading: isUpdateSubmitting } = sessionsApiInstance.useUpdateItem();
 
-      return this.characters.filter((seller) => {
-        const notSameAccountAsCharacter =
-          seller.accountId !== this.character.account;
-        const notTheCharacterItself = seller.id !== this.character.id;
-        const sameServer = seller.serverName === this.character.serverName;
-        const notAFollowerAccount = !this.followers.some(
-          (follower) => follower.account === seller.account
-        );
+const isSubmitting = computed(() => isAddSubmitting || isUpdateSubmitting);
 
-        return (
-          sameServer &&
-          notSameAccountAsCharacter &&
-          notTheCharacterItself &&
-          notAFollowerAccount
-        );
-      });
-    },
-    selectedUnloadType: {
-      get() {
-        return this.unloadType;
-      },
-      set(option) {
-        this.unloadType = option.value;
-      },
-    },
-  },
-  props: {
-    currSessionId: {
-      type: String,
-      default: null,
-    },
-  },
-  methods: {
-    handleErrors(errors) {
-      // Assume errors are in the format { field_name: ["Error message"], ... }
-      for (const [key, value] of Object.entries(errors)) {
-        if (Array.isArray(value)) {
-          this.$q.notify({
-            color: "negative",
-            message: `${key}: ${value.join(" ")}`, // Joining messages if array
-            icon: "error",
-            position: "top",
-          });
-        }
-      }
-    },
-    filterFn(val, update) {
-      update(() => {
-        this.filterValue = val;
-      });
-      return;
-    },
-    removeOption(option) {
-      this.followers = this.followers.filter((o) => o.id !== option.id);
-    },
-    clearFilter() {
-      this.filterValue = "";
-    },
-    clearInput() {
-      this.$refs.select.clear();
-    },
-    async confirm() {
-      let res = this.validateAccounts();
-      if (res !== true) {
-        this.$q.notify({
-          color: "negative",
-          message: res,
-          icon: "warning",
-          position: "top",
-          timeout: 1000,
-        });
-        return;
-      }
-      res = this.validateID(this.id);
-      if (res !== true) {
-        this.$q.notify({
-          color: "negative",
-          message: res,
-          icon: "warning",
-          position: "top",
-          timeout: 1000,
-        });
-        return;
-      }
-      let session = {
-        id: this.id,
-        character: this.character.id,
-        monsterLvlCoefDiff: this.monsterLvlCoefDiff,
-        path: this.path.id,
-        unloadType: this.unloadType,
-        seller: this.seller?.id,
-        followers: this.followers.map((follower) => follower.id),
-        fightsPerMinute: this.fightsPerMinute,
-        type: SessionTypeEnum.GROUP_FIGHT,
-      };
-      try {
-        await this.sessionStore.createSession(session);
-        this.closeModal();
-      } catch (error) {
-        this.handleErrors(error.response.data);
-      }
-    },
-    validateID(name) {
-      if (!name) {
-        return "Name is required.";
-      } else if (name.length < 3) {
-        return "Name must be at least 3 characters long.";
-      } else if (name.length > 50) {
-        return "Name must be less than 50 characters long.";
-      } else if (!/^[a-zA-Z0-9_-]*$/.test(name)) {
-        return "Name can only contain alphanumeric characters, dashes and underscores.";
-      }
-      return true;
-    },
-    validateAccounts() {
-      let characterAccountId = this.character?.account;
-      let sellerAccountId = this.seller?.account;
-      let followerAccountIds = this.followers.map(
-        (follower) => follower.account
-      );
-      if (!characterAccountId) {
-        return "Character is required";
-      }
-      if (this.unloadType === UnloadTypeEnum.SELLER) {
-        if (!sellerAccountId)
-          return "Seller is required when unloading to seller";
-        if (sellerAccountId === characterAccountId)
-          return "Seller must belong to a different account than the character";
-        if (this.seller.serverName !== this.character.serverName)
-          return "Seller must be on the same server as the character";
-        if (followerAccountIds.includes(sellerAccountId))
-          return "Seller must belong to a different account than followers";
-      }
-      // character must belong to a different account than its followers
-      if (followerAccountIds.includes(characterAccountId)) {
-        return "Followers must belong to a different account than the character";
-      }
-      // followers must be on the same server as the character
-      if (
-        this.followers.some(
-          (follower) => follower.serverName !== this.character.serverName
+// Define form validation schema using Yup
+const validationSchema = yup.object({
+  id: yup
+    .string()
+    .required("Session ID is required")
+    .min(3, "Session ID must be at least 3 characters")
+    .max(50, "Session ID must be less than 50 characters")
+    .matches(/^[a-zA-Z0-9_-]*$/, "Session ID can only contain alphanumeric characters, dashes and underscores"),
+  character: yup.object().nullable().required("Character is required"),
+  monsterLvlCoefDiff: yup.number().required("Monster Coef Diff is required").min(0, "Minimum value is 0"),
+  fightsPerMinute: yup.number().required("Fights per minute is required").min(1, "Minimum value is 1"),
+  followers: yup.array().of(yup.object()),
+  unloadType: yup.string().required("Unload Type is required"),
+  path: yup.object().nullable().required("Path is required"),
+  seller: yup
+    .object()
+    .nullable()
+    .when("unloadType", {
+      is: UnloadTypeEnum.SELLER,
+      then: yup
+        .object()
+        .required("Seller is required when unloading to seller")
+        .test(
+          "different-account",
+          "Seller must belong to a different account than the character",
+          function (value) {
+            const { character } = this.parent;
+            if (character && value) {
+              return character.account !== value.account;
+            }
+            return true;
+          }
         )
-      ) {
-        return "Followers must be on the same server as the character";
-      }
-      return true;
-    },
-    closeModal() {
-      this.id = null;
-      this.unloadType = UnloadTypeEnum.BANK;
-      this.seller = null;
-      this.$emit("finished");
-    },
+        .test(
+          "same-server",
+          "Seller must be on the same server as the character",
+          function (value) {
+            const { character } = this.parent;
+            if (character && value) {
+              return character.serverName === value.serverName;
+            }
+            return true;
+          }
+        ),
+    }),
+});
+
+// Quasar configuration for handling field errors
+const quasarConfig = (state) => ({
+  props: {
+    error: !!state.errors[0],
+    "error-message": state.errors[0],
   },
-  watch: {
-    character: function (newval, oldval) {
-      if (!newval) {
-        this.character = null;
-        return;
-      }
-      if (
-        this.seller &&
-        (newval.serverName !== this.seller.serverName ||
-          newval.account === this.seller.account)
-      )
-        this.seller = null;
-    },
-    seller(newSeller, oldSeller) {
-      if (!newSeller) {
-        this.seller = null;
-        return;
-      }
-      if (
-        this.character &&
-        newSeller.account === oldSeller?.account &&
-        newSeller.serverName === oldSeller?.serverName
-      ) {
-        this.character = null;
-      }
-    },
-    unloadType(newVal, oldVal) {
-      if (newVal === UnloadTypeEnum.BANK) {
-        this.seller = null;
-      }
-    },
+});
+
+// Use the form with initial values and the validation schema
+const { handleSubmit, errors, resetForm, defineField } = useForm({
+  validationSchema,
+  initialValues: {
+    id: uuidv4(),
+    character: null,
+    monsterLvlCoefDiff: 4,
+    fightsPerMinute: 1,
+    followers: [],
+    unloadType: UnloadTypeEnum.BANK,
+    path: null,
+    seller: null,
   },
+});
+
+// Define fields with VeeValidate and Quasar configuration
+const [id, idAttrs] = defineField("id", quasarConfig);
+const [character, characterAttrs] = defineField("character", quasarConfig);
+const [monsterLvlCoefDiff, monsterLvlCoefDiffAttrs] = defineField("monsterLvlCoefDiff", quasarConfig);
+const [fightsPerMinute, fightsPerMinuteAttrs] = defineField("fightsPerMinute", quasarConfig);
+const [followers, followersAttrs] = defineField("followers", quasarConfig);
+const [unloadType, unloadTypeAttrs] = defineField("unloadType", quasarConfig);
+const [path, pathAttrs] = defineField("path", quasarConfig);
+const [seller, sellerAttrs] = defineField("seller", quasarConfig);
+
+
+// Computed properties for select options
+const characterSelectOptions = computed(() => {
+  if (!characters.value || !seller.value) {
+    return characters.value || [];
+  }
+
+  return characters.value.filter((ch) => {
+    return (ch.account !== seller.value?.account);
+  });
+});
+
+const followersSelectOptions = computed(() => {
+  if (!characters.value || !character.value) {
+    return [];
+  }
+
+  return characters.value.filter((follower) => {
+    const notSameCharacterAccount = follower.account !== character.value.account;
+    const notSameSellerAccount = !seller.value || follower.account !== seller.value.account;
+    const sameCharacterServer = follower.serverName === character.value.serverName;
+
+    return sameCharacterServer && notSameCharacterAccount && notSameSellerAccount;
+  });
+});
+
+const sellerSelectOptions = computed(() => {
+  if (!characters.value || !character.value) {
+    return characters.value || [];
+  }
+
+  return characters.value.filter((seller) => {
+    const notSameAccountAsCharacter = seller.account !== character.value.account;
+    const notTheCharacterItself = seller.id !== character.value.id;
+    const sameServer = seller.serverName === character.value.serverName;
+    const notAFollowerAccount = !followers.value.some(
+      (follower) => follower.account === seller.account
+    );
+
+    return sameServer && notSameAccountAsCharacter && notTheCharacterItself && notAFollowerAccount;
+  });
+});
+
+// Filter functions
+const filterCharacters = (val, update, abort) => {
+  update(() => {
+    const needle = val.toLowerCase();
+    characterSelectOptions.value = characters.value.filter(v => v.name.toLowerCase().indexOf(needle) > -1);
+  });
 };
+
+const filterFollowers = (val, update, abort) => {
+  update(() => {
+    const needle = val.toLowerCase();
+    followersSelectOptions.value = followersSelectOptions.value.filter(v => v.name.toLowerCase().indexOf(needle) > -1);
+  });
+};
+
+const filterSellers = (val, update, abort) => {
+  update(() => {
+    const needle = val.toLowerCase();
+    sellerSelectOptions.value = sellerSelectOptions.value.filter(v => v.name.toLowerCase().indexOf(needle) > -1);
+  });
+};
+
+const removeFollower = (option) => {
+  followers.value = followers.value.filter((o) => o.id !== option.id);
+};
+
+// Close modal method
+const closeModal = () => {
+  emit("update:modelValue", false);
+  emit("finished");
+};
+
+// Session unload type choices
+const sessionUnloadTypeChoices = [
+  { label: "Bank", value: UnloadTypeEnum.BANK },
+  { label: "Seller", value: UnloadTypeEnum.SELLER },
+];
+
+// Lifecycle hook to set initial values if editing an existing session
+watch(aSession, (newSession) => {
+  if (newSession && isEditMode.value) {
+    resetForm({
+      values: {
+        id: newSession.id,
+        character: newSession.character,
+        monsterLvlCoefDiff: newSession.monsterLvlCoefDiff,
+        fightsPerMinute: newSession.fightsPerMinute,
+        followers: newSession.followers,
+        unloadType: newSession.unloadType,
+        path: newSession.path,
+        seller: newSession.seller,
+      },
+    });
+  }
+}, { immediate: true });
+
+// Error handling for session loading
+watch(aSessionError, (error) => {
+  if (error && isEditMode.value) {
+    console.error("Error loading session:", error);
+    // You might want to show an error message to the user here
+  }
+});
+
+// Watchers for interdependent fields
+watch(character, (newval, oldval) => {
+  if (!newval) {
+    character.value = null;
+    return;
+  }
+  if (
+    seller.value &&
+    (newval.serverName !== seller.value.serverName ||
+      newval.account === seller.value.account)
+  ) {
+    seller.value = null;
+  }
+  // Reset followers if they're not on the same server as the new character
+  followers.value = followers.value.filter(
+    follower => follower.serverName === newval.serverName
+  );
+});
+
+watch(seller, (newSeller, oldSeller) => {
+  if (!newSeller) {
+    seller.value = null;
+    return;
+  }
+  if (
+    character.value &&
+    newSeller.account === character.value.account &&
+    newSeller.serverName === character.value.serverName
+  ) {
+    character.value = null;
+  }
+  // Remove followers that are on the same account as the new seller
+  followers.value = followers.value.filter(
+    follower => follower.account !== newSeller.account
+  );
+});
+
+watch(unloadType, (newVal) => {
+  if (newVal === UnloadTypeEnum.BANK) {
+    seller.value = null;
+  }
+});
+
+onMounted(() => {
+  if (!isEditMode.value) {
+    resetForm({
+      values: {
+        id: uuidv4(),
+        character: null,
+        monsterLvlCoefDiff: 4,
+        fightsPerMinute: 1,
+        followers: [],
+        unloadType: UnloadTypeEnum.BANK,
+        path: null,
+        seller: null,
+      }
+    });
+  }
+});
+
+// Helper function to handle API errors
+const handleApiError = (error) => {
+  if (error.response && error.response.data) {
+    const serverErrors = error.response.data;
+    for (const field in serverErrors) {
+      if (typeof errors[field] === 'function') {
+        errors[field](String(serverErrors[field][0]));
+      }
+    }
+  } else {
+    console.error("An error occurred:", error);
+    // You might want to show a generic error message to the user here
+  }
+};
+
+// Update the onSubmit function to use the error handler
+const onSubmit = handleSubmit(async (values) => {
+  try {
+    const session = {
+      ...values,
+      character: values.character?.id,
+      followers: values.followers.map(f => f.id),
+      path: values.path?.id,
+      seller: values.seller?.id,
+      type: SessionTypeEnum.GROUP_FIGHT,
+    };
+
+    if (isEditMode.value) {
+      await updateSession({ id: props.currSessionId, newItem: session });
+    } else {
+      await addSession(session);
+    }
+    closeModal();
+  } catch (error) {
+    handleApiError(error);
+  }
+});
 </script>
 
 <style scoped>
 .min-width-800px {
   max-width: none !important;
   min-width: 800px;
+}
+.blur-content {
+  filter: blur(2px);
+  pointer-events: none;
 }
 </style>

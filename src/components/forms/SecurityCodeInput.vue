@@ -93,7 +93,7 @@ export default {
     },
     async submitSecurityCode() {
       try {
-        await accountsApiInstance.securityCode(
+        const response = await accountsApiInstance.securityCode(
           this.securityCode,
           this.accountId
         );
@@ -102,6 +102,9 @@ export default {
           type: "positive",
           message: "Security code validated successfully.",
         });
+
+        this.securityCodeArray = Array(6).fill("");
+        this.$emit("success", response);
       } catch (error) {
         console.error("Error during security code validation:", error);
         this.$q.notify({
@@ -110,8 +113,6 @@ export default {
         });
         this.closeDialog();
       }
-      this.securityCodeArray = Array(6).fill("");
-      this.$emit("success");
     },
     closeDialog() {
       this.securityCodeArray = Array(6).fill("");

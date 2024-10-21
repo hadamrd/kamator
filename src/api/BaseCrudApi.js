@@ -1,6 +1,5 @@
-// src/api/BaseCrudApi.js
 import { api } from "src/boot/axios";
-import { useQuery } from "@tanstack/vue-query";
+import { useQuery, useMutation } from "@tanstack/vue-query";
 import { queryClient } from "src/boot/vue-query";
 
 class BaseCrudApi {
@@ -22,40 +21,74 @@ class BaseCrudApi {
     return response.data;
   }
 
+  invalidateItem(itemId) {
+    queryClient.invalidateQueries([this.cacheKey, "detail", itemId]);
+  }
+
+  invalidateList() {
+    queryClient.invalidateQueries([this.cacheKey, "list"]);
+  }
+
   async addItem(item) {
     const response = await api.post(`${this.endpoint}/`, item);
-    if (response.status === 201 || response.status === 200) {
-      this.updateCacheOnAdd(response.data);
-    }
     return response.data;
   }
 
   async updateItem(id, newItem) {
     const response = await api.put(`${this.endpoint}/${id}`, newItem);
-    if (response.status === 200) {
-      this.updateCacheOnUpdate(id, newItem);
-    }
     return response.data;
   }
 
   async deleteItem(id) {
     const response = await api.delete(`${this.endpoint}/${id}`);
-    if (response.status === 204) {
-      this.updateCacheOnDelete(id);
-    }
     return response.data;
   }
 
-  updateCacheOnAdd(newItem) {
-    queryClient.setQueryData([this.cacheKey, newItem.id], newItem);
-    const allItems = queryClient.getQueryData([this.cacheKey, 'all']);
-    if (allItems) {
-      queryClient.setQueryData([this.cacheKey, 'all'], [...allItems, newItem]);
-    }
+  useGetItems() {
+    return useQuery({
+      queryKey: [this.cacheKey, "list"],
+      queryFn: () => this.getItems(),
+    });
+  }
+
+  useGetItem(itemId) {
+    return useQuery({
+      queryKey: [this.cacheKey, "detail", itemId],
+      queryFn: () => this.getItem(itemId),
+    });
+  }
+
+  useAddItem() {
+    return useMutation({
+      mutationFn: (newItem) => this.addItem(newItem),
+      onSuccess: () => {
+        this.invalidateList()
+      },
+    });
+  }
+
+  useUpdateItem() {
+    return useMutation({
+      mutationFn: ({ id, newItem }) => this.updateItem(id, newItem),
+      onSuccess: (_) => {
+        this.invalidateList()
+        this.invalidateItem(id);
+      },
+    });
+  }
+
+  useDeleteItem() {
+    return useMutation({
+      mutationFn: (id) => this.deleteItem(id),
+      onSuccess: (_, id) => {
+        this.invalidateList()
+        this.invalidateItem(id);
+      },
+    });
   }
 
   async updateCacheOnUpdate(itemId, newData) {
-    let updatedItem = queryClient.getQueryData([this.cacheKey, itemId]);
+    let updatedItem = queryClient.getQueryData([this.cacheKey, "detail", itemId]);
     if (!updatedItem) {
         updatedItem = await this.getItem(itemId);
     } else {
@@ -63,53 +96,20 @@ class BaseCrudApi {
     }
 
     // Ensure the individual item cache is updated
-    queryClient.setQueryData([this.cacheKey, itemId], updatedItem);
+    queryClient.setQueryData([this.cacheKey, "detail", itemId], updatedItem);
 
     // Update the 'all' items cache
-    const allItems = queryClient.getQueryData([this.cacheKey, 'all']);
+    const allItems = queryClient.getQueryData([this.cacheKey, 'list']);
     if (allItems) {
         const itemIndex = allItems.findIndex((it) => it && it.id === itemId);
         if (itemIndex > -1) {
             const newDataArray = [...allItems];
             newDataArray[itemIndex] = updatedItem;
-            queryClient.setQueryData([this.cacheKey, 'all'], newDataArray);
+            queryClient.setQueryData([this.cacheKey, 'list'], newDataArray);
         } else {
-            queryClient.setQueryData([this.cacheKey, 'all'], [...allItems, updatedItem]);
+            queryClient.setQueryData([this.cacheKey, 'list'], [...allItems, updatedItem]);
         }
     }
-}
-
-  updateCacheOnDelete(id) {
-    queryClient.invalidateQueries([this.cacheKey, id]);
-    queryClient.setQueryData([this.cacheKey, "all"], (oldData) => {
-      return oldData ? oldData.filter((item) => item.id !== id) : [];
-    });
-  }
-
-  useGetItems() {
-    return useQuery({
-      queryKey: [this.cacheKey, "all"],
-      queryFn: async () => {
-        const data = await this.getItems();
-        data.forEach((item) => {
-          queryClient.setQueryData([this.cacheKey, item.id], item);
-        });
-        return data;
-      },
-    });
-  }
-
-  useGetItem(itemId) {
-    return useQuery({
-      queryKey: [this.cacheKey, itemId],
-      queryFn: async () => {
-        return await this.getItem(itemId);
-      },
-    });
-  }
-
-  clearAllCache() {
-    queryClient.invalidateQueries({ queryKey: this.cacheKey });
   }
 }
 

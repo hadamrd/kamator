@@ -55,7 +55,12 @@ export default {
     const globalStore = useGlobalStore();
     globalStore.header = "Sessions";
     const menuOpen = ref(false);
-    return { showSessionForm, selectedSessionType, menuOpen, sessionTypesChoices };
+    return {
+      showSessionForm,
+      selectedSessionType,
+      menuOpen,
+      sessionTypesChoices,
+    };
   },
   computed: {
     currentFormComponent() {

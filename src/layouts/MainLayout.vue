@@ -105,7 +105,7 @@
 
 <script>
 import { ref } from "vue";
-import { useWebSocketStore } from "src/stores/webSockets";
+import { useWebSocketStore } from "src/stores/webSocketStore";
 import { useGlobalStore } from "src/stores/globalVuesStore";
 import Taskbar from "components/Taskbar.vue";
 

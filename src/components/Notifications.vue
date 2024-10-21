@@ -42,7 +42,7 @@
 </template>
 
 <script>
-import { useWebSocketStore } from "stores/webSockets";
+import { useWebSocketStore } from "src/stores/webSocketStore";
 import { ref } from "vue";
 import { useGlobalStore } from "stores/globalVuesStore";
 

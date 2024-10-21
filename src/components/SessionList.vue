@@ -1,6 +1,22 @@
 <template>
-  <q-list bordered class="session-list" :Loading="isAccountsLoading || isCharactersLoading || isSessionsLoading || isSessionRunsLoading">
-    <template v-if="isAccountsLoading || isCharactersLoading || isSessionsLoading || isSessionRunsLoading">
+  <q-list
+    bordered
+    class="session-list"
+    :Loading="
+      isAccountsLoading ||
+      isCharactersLoading ||
+      isSessionsLoading ||
+      isSessionRunsLoading
+    "
+  >
+    <template
+      v-if="
+        isAccountsLoading ||
+        isCharactersLoading ||
+        isSessionsLoading ||
+        isSessionRunsLoading
+      "
+    >
       <q-item>
         <q-item-section>
           <q-spinner-dots color="primary" />
@@ -8,21 +24,41 @@
         </q-item-section>
       </q-item>
     </template>
-    <template v-else-if="isAccountsError || isCharactersError || isSessionsError || isSessionRunsError">
+    <template
+      v-else-if="
+        isAccountsError ||
+        isCharactersError ||
+        isSessionsError ||
+        isSessionRunsError
+      "
+    >
       <q-item>
         <q-item-section>
           <q-icon name="warning" color="negative" />
           Error loading data:
-          <div v-if="isAccountsError">Accounts: {{ accountsError.message }}</div>
-          <div v-if="isCharactersError">Characters: {{ charactersError.message }}</div>
-          <div v-if="isSessionsError">Sessions: {{ sessionsError.message }}</div>
-          <div v-if="isSessionRunsError">Session Runs: {{ sessionRunsError.message }}</div>
+          <div v-if="isAccountsError">
+            Accounts: {{ accountsError.message }}
+          </div>
+          <div v-if="isCharactersError">
+            Characters: {{ charactersError.message }}
+          </div>
+          <div v-if="isSessionsError">
+            Sessions: {{ sessionsError.message }}
+          </div>
+          <div v-if="isSessionRunsError">
+            Session Runs: {{ sessionRunsError.message }}
+          </div>
         </q-item-section>
       </q-item>
     </template>
     <template v-else>
-      <q-item v-for="session in sessions" :key="session.id" clickable class="session-item"
-        @click="selectSession(session)">
+      <q-item
+        v-for="session in sessions"
+        :key="session.id"
+        clickable
+        class="session-item"
+        @click="selectSession(session)"
+      >
         <q-item-section avatar>
           <q-avatar size="50px">
             <img :src="getSessionImage(session)" alt="session-avatar" />
@@ -31,23 +67,60 @@
         <q-item-section>
           <q-item-label class="session-id">{{ session.id }}</q-item-label>
           <q-item-label caption>{{ session.type }}</q-item-label>
-          <q-item-label caption>Status: <span
-              :class="{ 'status-running': isSessionRunning(session.id), 'status-down': !isSessionRunning(session.id) }">{{
-                getSessionStatus(session.id) }}</span></q-item-label>
+          <q-item-label caption
+            >Status:
+            <span
+              :class="{
+                'status-running': isSessionRunning(session.id),
+                'status-down': !isSessionRunning(session.id),
+              }"
+              >{{ getSessionStatus(session.id) }}</span
+            ></q-item-label
+          >
         </q-item-section>
         <q-item-section class="col-5 gt-sm">
-          <q-item-label>Character: <span class="highlight">{{ getSessionCharacter(session)?.name }}</span> ({{ getSessionCharacter(session)?.level }})</q-item-label>
-          <q-item-label caption>Account: {{ getSessionCharacter(session)?.account }}</q-item-label>
-          <q-item-label caption>Server: {{ getSessionCharacter(session)?.serverName }}</q-item-label>
+          <q-item-label
+            >Character:
+            <span class="highlight">{{
+              getSessionCharacter(session)?.name
+            }}</span>
+            ({{ getSessionCharacter(session)?.level }})</q-item-label
+          >
+          <q-item-label caption
+            >Account: {{ getSessionCharacter(session)?.account }}</q-item-label
+          >
+          <q-item-label caption
+            >Server:
+            {{ getSessionCharacter(session)?.serverName }}</q-item-label
+          >
         </q-item-section>
         <q-item-section side>
           <q-btn-group push>
-            <q-btn v-if="!isSessionRunning(session.id)" icon="play_arrow" color="positive"
-              @click.stop="toggleStartStop(session.id)" aria-label="Start Session" />
-            <q-btn v-else icon="stop" color="negative" @click.stop="toggleStartStop(session.id)"
-              aria-label="Stop Session" />
-            <q-btn icon="delete" color="negative" @click.stop="deleteSession(session.id)" />
-            <q-btn icon="visibility" color="primary" :to="getLogViewerRoute(session)" @click.stop="logButtonClick" />
+            <q-btn
+              v-if="!isSessionRunning(session.id)"
+              icon="play_arrow"
+              color="positive"
+              @click.stop="toggleStartStop(session.id)"
+              aria-label="Start Session"
+            />
+            <q-btn
+              v-else
+              icon="stop"
+              color="negative"
+              @click.stop="toggleStartStop(session.id)"
+              aria-label="Stop Session"
+            />
+            <q-btn
+              icon="delete"
+              color="negative"
+              @click.stop="deleteSession(session.id)"
+            />
+            <q-btn
+              icon="visibility"
+              color="primary"
+              :to="getLogViewerRoute(session)"
+              @click.stop="logButtonClick"
+            />
           </q-btn-group>
         </q-item-section>
       </q-item>
@@ -56,17 +129,19 @@
 </template>
 
 <script>
-import { ref } from 'vue';
-import accountsApiInstance from 'src/api/account';
-import charactersApiInstance from 'src/api/characters';
-import sessionRunsApiInstance from 'src/api/sessionRuns';
-import sessionsApiInstance from 'src/api/session';
-import { SessionStatusEnum } from 'src/enums/sessionEnums';
-import { Loading } from 'quasar';
+import { ref } from "vue";
+import { useQuasar } from "quasar";
+import accountsApiInstance from "src/api/account";
+import charactersApiInstance from "src/api/characters";
+import sessionRunsApiInstance from "src/api/sessionRuns";
+import sessionsApiInstance from "src/api/session";
+import { SessionStatusEnum } from "src/enums/sessionEnums";
 
 export default {
-  name: 'SessionList',
+  name: "SessionList",
   setup() {
+    const $q = useQuasar();
+
     const {
       isLoading: isAccountsLoading,
       data: accounts,
@@ -99,8 +174,32 @@ export default {
       refetch: refetchSessionRuns,
     } = sessionRunsApiInstance.useGetItems();
 
+    const { mutate: deleteSessionMutation, isLoading: isDeleting } =
+      sessionsApiInstance.useDeleteItem();
+
     const isSessionRunning_ = ref({});
-    
+
+    const deleteSession = async (sessionId) => {
+      try {
+        await deleteSessionMutation(sessionId);
+        $q.notify({
+          color: "positive",
+          message: "Session deleted successfully",
+          icon: "check",
+          position: "top",
+          timeout: 1000,
+        });
+      } catch (error) {
+        $q.notify({
+          color: "negative",
+          message: error.message,
+          icon: "warning",
+          position: "top",
+          timeout: 1000,
+        });
+      }
+    };
+
     return {
       accounts,
       characters,
@@ -119,16 +218,18 @@ export default {
       sessionsError,
       sessionRunsError,
       isSessionRunning_,
+      deleteSession,
+      isDeleting,
     };
   },
   methods: {
     getLogViewerRoute(session) {
       const character = this.getSessionCharacter(session);
       const accountId = character?.account;
-      return { name: 'LogViewer', params: { botName: accountId } };
+      return { name: "LogViewer", params: { botName: accountId } };
     },
     logButtonClick() {
-      console.log('Button clicked');
+      console.log("Button clicked");
     },
     getSessionCharacter(session) {
       if (!this.characters) return null;
@@ -146,19 +247,19 @@ export default {
         }
       } catch (error) {
         this.$q.notify({
-          color: 'negative',
+          color: "negative",
           message: error.message,
-          icon: 'warning',
-          position: 'top',
+          icon: "warning",
+          position: "top",
           timeout: 1000,
         });
       }
     },
     getSessionStatus(sessionId) {
       if (this.isSessionRunning(sessionId)) {
-        return 'RUNNING';
+        return "RUNNING";
       }
-      return 'DOWN';
+      return "DOWN";
     },
     isSessionRunning(sessionId) {
       if (this.sessionRuns == null) return false;
@@ -187,26 +288,6 @@ export default {
       );
       return session_run;
     },
-    async deleteSession(sessionId) {
-      try {
-        await sessionsApiInstance.deleteItem(sessionId);
-        this.$q.notify({
-          color: 'positive',
-          message: 'Session deleted successfully',
-          icon: 'check',
-          position: 'top',
-          timeout: 1000,
-        });
-      } catch (error) {
-        this.$q.notify({
-          color: 'negative',
-          message: error.message,
-          icon: 'warning',
-          position: 'top',
-          timeout: 1000,
-        });
-      }
-    },
     getSessionImage(session) {
       return new URL(
         `/src/assets/session_type/${session.type}.png`,
@@ -214,7 +295,7 @@ export default {
       ).href;
     },
     selectSession(session) {
-      this.$emit('selectSession', session);
+      this.$emit("selectSession", session);
     },
   },
 };

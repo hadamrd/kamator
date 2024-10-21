@@ -6,12 +6,7 @@
           <div class="text-h6">Solo fight</div>
         </q-card-section>
         <q-card-section class="q-pa-md q-ma-md">
-          <q-input
-            dense
-            v-model="name"
-            class="q-mb-md"
-            v-bind="nameAttrs"
-          />
+          <q-input dense v-model="name" class="q-mb-md" v-bind="nameAttrs" />
           <q-input
             v-model.number="monsterLvlCoefDiff"
             class="q-mb-md"
@@ -138,51 +133,77 @@
 
 <!-- eslint-disable no-unused-vars -->
 <script setup>
-import { ref, computed, watch } from 'vue';
-import { SessionTypeEnum, UnloadTypeEnum } from 'src/enums/sessionEnums';
-import * as yup from 'yup';
-import { useForm } from 'vee-validate';
-import sessionsApiInstance from 'src/api/session';
-import pathsApiInstance from 'src/api/paths';
-import charactersApiInstance from 'src/api/characters';
+import { ref, computed, watch } from "vue";
+import { SessionTypeEnum, UnloadTypeEnum } from "src/enums/sessionEnums";
+import * as yup from "yup";
+import { useForm } from "vee-validate";
+import sessionsApiInstance from "src/api/session";
+import pathsApiInstance from "src/api/paths";
+import charactersApiInstance from "src/api/characters";
 
 // Fetch data using API instances
-const { data: characters, isLoading: isCharactersLoading } = charactersApiInstance.useGetItems();
-const { data: paths, isLoading: isPathsLoading } = pathsApiInstance.useGetItems();
-const { data: aSession, isLoading: isASessionLoading } = sessionsApiInstance.useGetItem(currSessionId);
+const { data: characters, isLoading: isCharactersLoading } =
+  charactersApiInstance.useGetItems();
+const { data: paths, isLoading: isPathsLoading } =
+  pathsApiInstance.useGetItems();
+const { data: aSession, isLoading: isASessionLoading } =
+  sessionsApiInstance.useGetItem(currSessionId);
 
 // Define form validation schema using Yup
 const validationSchema = yup.object({
-  name: yup.string().required('Session ID is required').min(3, 'Session ID must be at least 3 characters').max(50, 'Session ID must be less than 50 characters'),
-  character: yup.object().nullable().required('Character is required'),
-  monsterLvlCoefDiff: yup.number().required('Monster Coeff Diff is required').min(0.1, 'Minimum value is 0.1'),
-  fightsPerMinute: yup.number().required('Fights per minute is required').min(1, 'Minimum value is 1'),
-  seller: yup.object().nullable().when('unloadType', {
-    is: UnloadTypeEnum.SELLER,
-    then: yup.object().required('Seller is required when unloading to seller')
-      .test('different-account', 'Seller must belong to a different account than the character', function(value) {
-        const { character } = this.parent;
-        if (character && value) {
-          return character.account !== value.account;
-        }
-        return true;
-      })
-      .test('same-server', 'Seller must be on the same server as the character', function(value) {
-        const { character } = this.parent;
-        if (character && value) {
-          return character.serverName === value.serverName;
-        }
-        return true;
-      })
-  }),
-  unloadType: yup.string().required('Unload Type is required'),
-  path: yup.object().nullable().required('Path is required')
+  name: yup
+    .string()
+    .required("Session ID is required")
+    .min(3, "Session ID must be at least 3 characters")
+    .max(50, "Session ID must be less than 50 characters"),
+  character: yup.object().nullable().required("Character is required"),
+  monsterLvlCoefDiff: yup
+    .number()
+    .required("Monster Coeff Diff is required")
+    .min(0.1, "Minimum value is 0.1"),
+  fightsPerMinute: yup
+    .number()
+    .required("Fights per minute is required")
+    .min(1, "Minimum value is 1"),
+  seller: yup
+    .object()
+    .nullable()
+    .when("unloadType", {
+      is: UnloadTypeEnum.SELLER,
+      then: yup
+        .object()
+        .required("Seller is required when unloading to seller")
+        .test(
+          "different-account",
+          "Seller must belong to a different account than the character",
+          function (value) {
+            const { character } = this.parent;
+            if (character && value) {
+              return character.account !== value.account;
+            }
+            return true;
+          }
+        )
+        .test(
+          "same-server",
+          "Seller must be on the same server as the character",
+          function (value) {
+            const { character } = this.parent;
+            if (character && value) {
+              return character.serverName === value.serverName;
+            }
+            return true;
+          }
+        ),
+    }),
+  unloadType: yup.string().required("Unload Type is required"),
+  path: yup.object().nullable().required("Path is required"),
 });
 
 // Use the form with initial values and the validation schema
 const { handleSubmit, defineField, setFieldError } = useForm({
   initialValues: {
-    name: '',
+    name: "",
     character: null,
     monsterLvlCoefDiff: 4,
     fightsPerMinute: 1,
@@ -197,24 +218,30 @@ const { handleSubmit, defineField, setFieldError } = useForm({
 const quasarConfig = (state) => ({
   props: {
     error: !!state.errors[0],
-    'error-message': state.errors[0],
+    "error-message": state.errors[0],
   },
 });
 
 // Define fields with VeeValidate and Quasar configuration
-const [name, nameAttrs] = defineField('name', quasarConfig);
-const [character, characterAttrs] = defineField('character', quasarConfig);
-const [monsterLvlCoefDiff, monsterLvlCoefDiffAttrs] = defineField('monsterLvlCoefDiff', quasarConfig);
-const [fightsPerMinute, fightsPerMinuteAttrs] = defineField('fightsPerMinute', quasarConfig);
-const [seller, sellerAttrs] = defineField('seller', quasarConfig);
-const [unloadType, unloadTypeAttrs] = defineField('unloadType', quasarConfig);
-const [path, pathAttrs] = defineField('path', quasarConfig);
+const [name, nameAttrs] = defineField("name", quasarConfig);
+const [character, characterAttrs] = defineField("character", quasarConfig);
+const [monsterLvlCoefDiff, monsterLvlCoefDiffAttrs] = defineField(
+  "monsterLvlCoefDiff",
+  quasarConfig
+);
+const [fightsPerMinute, fightsPerMinuteAttrs] = defineField(
+  "fightsPerMinute",
+  quasarConfig
+);
+const [seller, sellerAttrs] = defineField("seller", quasarConfig);
+const [unloadType, unloadTypeAttrs] = defineField("unloadType", quasarConfig);
+const [path, pathAttrs] = defineField("path", quasarConfig);
 
 // Submit handler for the form
 const onSubmit = handleSubmit(async (values) => {
   try {
     await sessionsApiInstance.addItem(values);
-    emit('update:modelValue', false);
+    emit("update:modelValue", false);
   } catch (error) {
     if (error?.response?.data) {
       const serverErrors = error.response.data;
@@ -260,7 +287,11 @@ watch(character, (newval, oldval) => {
     character.value = null;
     return;
   }
-  if (seller.value && (newval.serverName !== seller.value.serverName || newval.account === seller.value.account)) {
+  if (
+    seller.value &&
+    (newval.serverName !== seller.value.serverName ||
+      newval.account === seller.value.account)
+  ) {
     seller.value = null;
   }
 });
@@ -270,7 +301,11 @@ watch(seller, (newSeller, oldSeller) => {
     seller.value = null;
     return;
   }
-  if (character.value && newSeller.account === oldSeller?.account && newSeller.serverName === oldSeller?.serverName) {
+  if (
+    character.value &&
+    newSeller.account === oldSeller?.account &&
+    newSeller.serverName === oldSeller?.serverName
+  ) {
     character.value = null;
   }
 });
@@ -289,7 +324,7 @@ const filterFn = (val, update) => {
 };
 
 const clearFilter = () => {
-  filterValue.value = '';
+  filterValue.value = "";
 };
 
 const clearInput = () => {
@@ -298,11 +333,9 @@ const clearInput = () => {
 
 // Close modal method
 const closeModal = () => {
-  emit('update:modelValue', false);
+  emit("update:modelValue", false);
 };
-
 </script>
-
 
 <style scoped>
 .q-select label {

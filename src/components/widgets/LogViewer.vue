@@ -4,28 +4,40 @@
       <h3 class="log-title">Logs of the account {{ botName }}</h3>
       <div class="log-actions">
         <q-btn color="primary" class="log-action-btn" @click="clearLogs">Clear Logs</q-btn>
-        <q-btn color="warning" class="log-action-btn" @click="toggleSelectMode">{{ selectMode ? 'Exit Select Mode' :
-          'Select Mode' }}</q-btn>
+        <q-btn color="warning" class="log-action-btn" @click="toggleSelectMode">
+          {{ selectMode ? "Exit Select Mode" : "Select Mode" }}
+        </q-btn>
         <q-btn color="negative" class="log-action-btn" @click="quit">Quit</q-btn>
       </div>
     </q-card-section>
     <q-card-section>
-      <div class="log-container" ref="logContainer" @scroll="handleScroll" @mousedown="stopAutoScroll"
-        @mouseup="resumeAutoScroll">
-        <div v-for="(log, index) in logs" :key="index" :class="['log-entry', { 'select-mode': selectMode }]"
-          v-html="log"></div>
+      <div
+        class="log-container"
+        ref="logContainer"
+        @scroll="handleScroll"
+        @mousedown="stopAutoScroll"
+        @mouseup="resumeAutoScroll"
+      >
+        <div
+          v-for="(log, index) in logs"
+          :key="index"
+          :class="['log-entry', { 'select-mode': selectMode }]"
+          v-html="log"
+        ></div>
       </div>
     </q-card-section>
   </q-card>
 </template>
 
 <script>
-import { ref, nextTick } from 'vue';
-import { Notify } from 'quasar';
-import LoggingService from 'src/api/loggingWebsocket';
+import { ref, nextTick } from "vue";
+import { Notify } from "quasar";
+import LoggingService from "src/api/loggingWebsocket";
+// src/main.js or src/main.ts
+import 'src/assets/css/fonts.css';
 
 export default {
-  name: 'LogViewer',
+  name: "LogViewer",
   props: {
     botName: {
       type: String,
@@ -47,7 +59,8 @@ export default {
       if (this.logs.length > 1000) {
         this.logs.shift();
       }
-      if (this.autoScroll && !this.selectMode) { // Only auto-scroll if not in select mode
+      if (this.autoScroll && !this.selectMode) {
+        // Only auto-scroll if not in select mode
         // Scroll to bottom
         nextTick(() => {
           const container = this.$refs.logContainer;
@@ -59,10 +72,10 @@ export default {
     },
     clearLogs() {
       this.logs = [];
-      console.log('Logs cleared');
+      console.log("Logs cleared");
       Notify.create({
-        type: 'positive',
-        message: 'Logs cleared!',
+        type: "positive",
+        message: "Logs cleared!",
       });
     },
     quit() {
@@ -82,7 +95,7 @@ export default {
     resumeAutoScroll() {
       this.scrollTimeout = setTimeout(() => {
         this.autoScroll = true;
-      }, 3000); // Resume auto-scrolling after 3 seconds
+      }, 5000); // Resume auto-scrolling after 5 seconds
     },
     handleScroll() {
       if (this.scrollTimeout) {
@@ -90,7 +103,7 @@ export default {
       }
       this.scrollTimeout = setTimeout(() => {
         this.autoScroll = true;
-      }, 3000); // Resume auto-scrolling after 3 seconds
+      }, 5000); // Resume auto-scrolling after 5 seconds
     },
     toggleSelectMode() {
       this.selectMode = !this.selectMode;
@@ -99,23 +112,23 @@ export default {
       } else {
         this.resumeAutoScroll();
       }
-    }
+    },
   },
   mounted() {
     this.logContainer = this.$refs.logContainer;
     LoggingService.connectWebSocket(this.botName);
-    LoggingService.emitter.on('log_message', this.addLogMessage);
+    LoggingService.emitter.on("log_message", this.addLogMessage);
   },
   unmounted() {
     LoggingService.stopLogStream(this.botName);
     LoggingService.closeWebSocket();
-    LoggingService.emitter.off('log_message', this.addLogMessage);
+    LoggingService.emitter.off("log_message", this.addLogMessage);
   },
 };
 </script>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Cascadia+Code:wght@400&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Cascadia+Code:wght@400&display=swap");
 
 .log-viewer-card {
   display: flex;
@@ -166,9 +179,9 @@ export default {
   /* Solarized Light text color */
   padding: 5px;
   /* Reduce padding */
-  font-family: 'Cascadia Code', Courier, monospace;
+  font-family: "Cascadia Code", Courier, monospace;
   /* Use Cascadia Code font */
-  font-size: 0.9rem;
+  font-size: 0.89rem;
   /* Font size */
   line-height: 1;
   /* Line height */

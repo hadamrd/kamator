@@ -26,14 +26,26 @@
           bordered
           class="session-table"
         >
-          <template v-slot:body-cell-details="props">
+          <template v-slot:body-cell-actions="props">
             <q-td :props="props">
               <q-btn
                 flat
                 dense
-                :to="{name: 'SessionRunDetails', params: { sessionRunId: props.row.id, sessionId: props.row.session}}"
+                :to="{
+                  name: 'SessionRunDetails',
+                  params: {
+                    sessionRunId: props.row.id,
+                    sessionId: props.row.session,
+                  },
+                }"
                 icon="launch"
               />
+              <q-btn
+              flat
+              dense
+              icon="delete"
+              @click.stop="deleteSessionRun(props.row.id)"
+            />
             </q-td>
           </template>
         </q-table>
@@ -53,80 +65,82 @@
 </template>
 
 <script>
-import { ref } from 'vue';
-import sessionRunsApiInstance from 'src/api/sessionRuns';
-import { SessionStatusEnum } from 'src/enums/sessionEnums';
+import { ref } from "vue";
+import sessionRunsApiInstance from "src/api/sessionRuns";
+import { SessionStatusEnum } from "src/enums/sessionEnums";
 
 function calculateRunTime(startTime, endTime) {
-  if (!startTime) return 'N/A';
+  if (!startTime) return "N/A";
   if (!endTime) endTime = new Date().toISOString();
   const start = new Date(startTime);
   const end = new Date(endTime);
   const diff = end - start;
-  return `${Math.floor(diff / 3600000)}h ${Math.floor((diff % 3600000) / 60000)}m`;
+  return `${Math.floor(diff / 3600000)}h ${Math.floor(
+    (diff % 3600000) / 60000
+  )}m`;
 }
 
 export default {
-  name: 'SessionRunList',
-  emits: ['select-session'],
+  name: "SessionRunList",
+  emits: ["select-session"],
   setup() {
     const {
       isLoading: isSessionRunsLoading,
       data: sessionRuns,
       isError: isSessionRunsError,
       error: sessionRunsError,
-      refetch: refetchSessionRuns,
     } = sessionRunsApiInstance.useGetItems();
 
     const columns = [
       {
-        name: 'runTime',
-        label: 'Total Run Time',
-        field: row => calculateRunTime(row.startTime, row.endTime),
+        name: "runTime",
+        label: "Total Run Time",
+        field: (row) => calculateRunTime(row.startTime, row.endTime),
         sortable: true,
       },
       {
-        name: 'status',
-        label: 'Status',
-        field: 'status',
-        format: val => (val.length > 10 ? val.slice(0, 30) + '...' : val),
-        style: 'max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;',
+        name: "status",
+        label: "Status",
+        field: "status",
+        format: (val) => (val.length > 10 ? val.slice(0, 30) + "..." : val),
+        style:
+          "max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;",
         sortable: true,
       },
       {
-        name: 'earnedKamas',
-        label: 'Earned Kamas',
-        field: 'earnedKamas',
+        name: "earnedKamas",
+        label: "Earned Kamas",
+        field: "earnedKamas",
         sortable: true,
       },
       {
-        name: 'estimatedKamasWon',
-        label: 'Estimated Kamas Won',
-        field: 'estimatedKamasWon',
+        name: "estimatedKamasWon",
+        label: "Estimated Kamas Won",
+        field: "estimatedKamasWon",
         sortable: true,
       },
       {
-        name: 'earnedLevels',
-        label: 'Earned Levels',
-        field: 'earnedLevels',
+        name: "earnedLevels",
+        label: "Earned Levels",
+        field: "earnedLevels",
         sortable: true,
       },
       {
-        name: 'currentLevel',
-        label: 'Current Level',
-        field: 'currentLevel',
+        name: "currentLevel",
+        label: "Current Level",
+        field: "currentLevel",
         sortable: true,
       },
       {
-        name: 'details',
-        label: 'Details',
-        field: 'id',
+        name: "actions",
+        label: "actions",
+        field: "id",
         sortable: false,
-        format: () => '',
-        style: 'width: 150px',
-        classes: 'text-right',
-        headerClasses: 'text-right',
-        body: props => {
+        format: () => "",
+        style: "width: 150px",
+        classes: "text-right",
+        headerClasses: "text-right",
+        body: (props) => {
           return `<q-btn
                 flat
                 dense
@@ -138,7 +152,7 @@ export default {
     ];
 
     const pagination = ref({
-      sortBy: 'startTime',
+      sortBy: "startTime",
       descending: false,
       page: 1,
       rowsPerPage: 20,
@@ -154,13 +168,18 @@ export default {
     };
   },
   methods: {
+    async deleteSessionRun(id) {
+      sessionRunsApiInstance.deleteItem(id);
+    }
   },
   computed: {
     rows() {
       return this.sessionRuns ?? [];
     },
     filteredRows() {
-      return this.rows.filter(row => row && row.status !== SessionStatusEnum.TERMINATED);
+      return this.rows.filter(
+        (row) => row && row.status !== SessionStatusEnum.TERMINATED
+      );
     },
   },
 };

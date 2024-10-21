@@ -15,7 +15,7 @@ class SessionRunsApi extends BaseCrudApi {
   async clearHistory() {
     const response = await api.post(`${this.endpoint}/clear_history/`);
     if (response.status === 200) {
-      this.clearAllCache()
+      this.clearAllCache();
     }
   }
 
@@ -30,7 +30,7 @@ class SessionRunsApi extends BaseCrudApi {
   }
 
   async isSessionRunning(sessionId) {
-    const cachedData = queryClient.getQueryData([this.cacheKey, 'all']);
+    const cachedData = queryClient.getQueryData([this.cacheKey, "all"]);
 
     if (!cachedData) {
       const cachedData = await this.getItems();
@@ -38,7 +38,7 @@ class SessionRunsApi extends BaseCrudApi {
         return false;
       }
 
-      queryClient.setQueryData([this.cacheKey, 'all'], cachedData);
+      queryClient.setQueryData([this.cacheKey, "all"], cachedData);
     }
 
     let sessionRun = cachedData.find((sr) => sr.session === sessionId);
@@ -47,10 +47,12 @@ class SessionRunsApi extends BaseCrudApi {
       return false;
     }
 
-    return sessionRun &&
+    return (
+      sessionRun &&
       sessionRun.status !== SessionStatusEnum.TERMINATED &&
       sessionRun.status !== SessionStatusEnum.CRASHED &&
-      sessionRun.status !== SessionStatusEnum.STOPPED;
+      sessionRun.status !== SessionStatusEnum.STOPPED
+    );
   }
 }
 

@@ -20,7 +20,7 @@
 </template>
 
 <script>
-import { useWebSocketStore } from "stores/webSockets"; // Path to your store
+import { useWebSocketStore } from "src/stores/webSocketStore"; // Path to your store
 
 export default {
   name: "TaskbarView",

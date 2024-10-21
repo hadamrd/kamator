@@ -14,7 +14,14 @@
         </q-banner>
       </div>
       <div v-else>
-        <q-btn flat dense color="primary" :disable="loading" label="Add path" @click="openPathForm" />
+        <q-btn
+          flat
+          dense
+          color="primary"
+          :disable="loading"
+          label="Add path"
+          @click="openPathForm"
+        />
         <q-list bordered>
           <q-item v-for="path in paths" :key="path.id" clickable v-ripple>
             <q-item-section>
@@ -23,10 +30,25 @@
             </q-item-section>
             <q-item-section side>
               <div class="text-grey-8 q-gutter-xs">
-                <q-btn class="gt-xs" dense round flat color="grey" @click="askConfirmDelete(path.id)" icon="delete">
+                <q-btn
+                  class="gt-xs"
+                  dense
+                  round
+                  flat
+                  color="grey"
+                  @click="askConfirmDelete(path.id)"
+                  icon="delete"
+                >
                   <q-tooltip :offset="[11, 0]">Delete path</q-tooltip>
                 </q-btn>
-                <q-btn class="gt-xs" dense round flat color="grey" icon="more_vert">
+                <q-btn
+                  class="gt-xs"
+                  dense
+                  round
+                  flat
+                  color="grey"
+                  icon="more_vert"
+                >
                   <q-tooltip :offset="[10, 0]">More actions</q-tooltip>
                   <q-menu touch-position auto-close>
                     <q-list dense>
@@ -45,10 +67,18 @@
       <q-card>
         <q-card-section class="row items-center">
           <q-avatar icon="delete" color="primary" text-color="white" />
-          <span class="q-ml-sm">Are you sure? This will delete the path permanently!</span>
+          <span class="q-ml-sm"
+            >Are you sure? This will delete the path permanently!</span
+          >
         </q-card-section>
         <q-card-actions align="right">
-          <q-btn flat label="Yes" color="primary" @click="deletePath" v-close-popup />
+          <q-btn
+            flat
+            label="Yes"
+            color="primary"
+            @click="deletePath"
+            v-close-popup
+          />
           <q-btn flat label="Cancel" color="primary" v-close-popup />
         </q-card-actions>
       </q-card>

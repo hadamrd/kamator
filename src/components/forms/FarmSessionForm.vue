@@ -3,16 +3,19 @@
     <div class="q-pa-md q-ma-md min-width-800px">
       <q-card>
         <q-card-section class="bg-primary text-center text-white">
-          <div class="text-h6">Farm</div>
+          <div class="text-h6">{{ isEditMode ? 'Edit' : 'Create' }} Farm</div>
         </q-card-section>
-        <q-card-section class="q-pa-md q-ma-md">
+        <q-inner-loading :showing="isEditMode && isASessionLoading">
+          <q-spinner-gears size="50px" color="primary" />
+        </q-inner-loading>
+        <q-card-section class="q-pa-md q-ma-md" :class="{ 'blur-content': isEditMode && isASessionLoading }">
           <q-input
             dense
             v-model="id"
             label="Session Name"
             class="q-mb-md"
-            :rules="[validateName]"
-            required
+            v-bind="idAttrs"
+            :disable="isEditMode"
           />
           <q-select
             class="q-mb-md"
@@ -20,13 +23,22 @@
             outlined
             bottom-slots
             v-model="character"
+            v-bind="characterAttrs"
             use-input
             :options="characterSelectOptions"
-            @filter="filterFn"
-            @input="clearFilter"
-            label="main character"
+            @filter="filterCharacters"
+            label="Main character"
             option-label="name"
+            :loading="isCharactersLoading"
           >
+            <template v-slot:append>
+              <q-icon
+                name="close"
+                class="cursor-pointer"
+                @click.stop.prevent="character = null"
+                :disable="!character"
+              />
+            </template>
           </q-select>
           <q-input
             type="number"
@@ -35,68 +47,67 @@
             v-model.number="numberOfCovers"
             label="Number of covers per path"
             class="q-mb-md"
-            required
-          >
-          </q-input>
+            v-bind="numberOfCoversAttrs"
+          />
           <q-select
             dense
             class="q-mb-md"
             outlined
             bottom-slots
-            ref="select"
             v-model="pathsList"
+            v-bind="pathsListAttrs"
             use-input
             multiple
             emit-value
             input-debounce="0"
-            label="select paths"
+            label="Select paths"
             option-label="id"
-            :options="pathStore.paths"
-            @filter="filterFn"
-            @input="clearFilter"
+            :options="paths"
+            @filter="filterPaths"
+            :loading="isPathsLoading"
           >
             <template v-slot:selected-item="{ opt }">
               <q-chip
                 dense
                 class="q-mr-xs"
                 removable
-                @remove="removeOption(opt)"
-                >{{ opt.id }}</q-chip
-              >
+                @remove="removePathOption(opt)"
+              >{{ opt.id }}</q-chip>
             </template>
             <template v-slot:append>
               <q-icon
                 name="close"
                 class="cursor-pointer"
-                icon="clear"
                 @click.stop.prevent="pathsList = []"
                 :disable="pathsList.length < 1"
-              ></q-icon>
+              />
             </template>
           </q-select>
-          <JobResourceSelector @updateJobFilter="handleJobFiltersData" />
+          <JobResourceSelector
+            :initial-filters="jobFilters"
+            @update-job-filter="handleJobFiltersData"
+          />
           <q-select
             class="q-mb-md"
             dense
             outlined
             bottom-slots
-            v-model="selectedUnloadType"
-            :options="sessionStore.sessionUnloadTypeChoices"
+            v-model="unloadType"
+            v-bind="unloadTypeAttrs"
+            :options="sessionUnloadTypeChoices"
             label="Select unload Type"
             option-label="label"
             option-value="value"
-          >
-          </q-select>
+          />
           <q-select
             dense
             outlined
             bottom-slots
             v-model="seller"
-            :options="characterSelectOptions"
-            @filter="filterFn"
-            @input="clearFilter"
+            v-bind="sellerAttrs"
+            :options="sellerSelectOptions"
+            @filter="filterSellers"
             use-input
-            @change="clearInput"
             label="Seller"
             option-label="name"
             v-show="unloadType === UnloadTypeEnum.SELLER"
@@ -105,14 +116,11 @@
               <q-icon
                 name="close"
                 class="cursor-pointer"
-                icon="clear"
                 @click.stop.prevent="seller = null"
                 :disable="!seller"
-              ></q-icon>
+              />
             </template>
-            <template v-slot:hint
-              >Character that will collect bots resources.</template
-            >
+            <template v-slot:hint>Character that will collect bots resources.</template>
           </q-select>
         </q-card-section>
         <q-card-actions align="center">
@@ -121,10 +129,12 @@
             dense
             color="primary"
             class="q-mr-md"
-            label="Confirm"
-            @click="confirm"
-            ><q-icon name="check"
-          /></q-btn>
+            :label="isEditMode ? 'Update' : 'Create'"
+            @click="onSubmit"
+            :loading="isSubmitting"
+          >
+            <q-icon :name="isEditMode ? 'update' : 'add'" />
+          </q-btn>
           <q-btn
             flat
             dense
@@ -132,271 +142,314 @@
             class="q-ml-md"
             label="Cancel"
             @click="closeModal"
-            ><q-icon name="close"
-          /></q-btn>
+          >
+            <q-icon name="close" />
+          </q-btn>
         </q-card-actions>
       </q-card>
     </div>
   </q-dialog>
 </template>
-<!-- eslint-disable no-unused-vars -->
-<script>
-import { ref } from "vue";
-import { useAccountStore } from "stores/accounts";
-import { useSessionStore } from "stores/sessions";
-import { usePathStore } from "stores/paths";
-import JobResourceSelector from "components/widgets/JobResourceSelector.vue";
-import { SessionTypeEnum, UnloadTypeEnum } from "src/enums/sessionEnums";
+
+<script setup>
+import { ref, computed, watch, onMounted } from "vue";
+import { useForm } from "vee-validate";
+import * as yup from "yup";
 import { v4 as uuidv4 } from "uuid";
+import { SessionTypeEnum, UnloadTypeEnum } from "src/enums/sessionEnums";
+import JobResourceSelector from "components/widgets/JobResourceSelector.vue";
+import sessionsApiInstance from "src/api/session";
+import pathsApiInstance from "src/api/paths";
+import charactersApiInstance from "src/api/characters";
 
-export default {
-  name: "FarmSessionForm",
-  components: {
-    JobResourceSelector,
+const emit = defineEmits(["update:modelValue", "finished"]);
+
+const props = defineProps({
+  currSessionId: {
+    type: String,
+    default: null,
   },
-  setup() {
-    const sessionStore = useSessionStore();
-    const accountStore = useAccountStore();
-    const pathStore = usePathStore();
+});
 
-    return {
-      session: ref(null),
-      filterValue: ref(""),
-      id: ref(null),
-      seller: ref(null),
-      paths: ref([]),
-      character: ref(null),
-      path: ref(null),
-      pathsList: ref([]),
-      accountStore,
-      type: ref(SessionTypeEnum.FIGHT),
-      numberOfCovers: ref(3),
-      SessionTypeEnum,
-      sessionStore,
-      pathStore,
-      unloadType: ref(UnloadTypeEnum.BANK),
-      UnloadTypeEnum,
-      characters: ref([]),
-    };
-  },
-  async created() {
-    this.characters = await this.accountStore.getCharacters();
-    this.paths = await this.pathStore.getPaths();
-    let asession = await this.sessionStore.getSession(this.currSessionId);
-    console.log(asession);
-    if (!asession) {
-      this.id = uuidv4();
-      this.unloadType = UnloadTypeEnum.BANK;
-      this.character = this.characters[0];
-      this.seller = null;
-      this.path = null;
-      this.pathsList = [];
-      this.numberOfCovers = 3;
-    } else {
-      this.leader = asession.leader;
-      this.server = asession.server;
-      this.followers = asession.followers;
-      this.unloadType = asession.unloadType;
-      this.seller = asession.seller;
-      this.path = asession.path;
-      this.id = asession.id;
-      this.numberOfCovers = asession.monsterLvlCoefDiff;
-    }
-  },
-  computed: {
-    characterSelectOptions() {
-      if (!this.characters) return [];
+const isEditMode = computed(() => !!props.currSessionId);
 
-      return this.characters.filter((ch) => {
-        return (ch.account !== ch.account) !== this.leader?.account;
-      });
-    },
-    sellerSelectOptions() {
-      if (!this.characters) return [];
+// Fetch data using API instances
+const { data: characters, isLoading: isCharactersLoading } = charactersApiInstance.useGetItems();
+const { data: paths, isLoading: isPathsLoading } = pathsApiInstance.useGetItems();
 
-      if (!this.character) return [];
+// Only fetch session data if we're in edit mode
+const {
+  data: aSession,
+  isLoading: isASessionLoading,
+  error: aSessionError
+} = isEditMode.value
+  ? sessionsApiInstance.useGetItem(props.currSessionId)
+  : { data: ref(null), isLoading: ref(false), error: ref(null) };
 
-      return this.characters.filter((ch) => {
-        return (
-          ch.serverName == this.character.serverName &&
-          ch.account !== this.character.account
-        );
-      });
-    },
-    selectedUnloadType: {
-      get() {
-        return this.unloadType;
-      },
-      set(option) {
-        console.log(option);
-        this.unloadType = option.value;
-      },
-    },
-  },
+const { mutate: addSession, isLoading: isAddSubmitting } = sessionsApiInstance.useAddItem();
+const { mutate: updateSession, isLoading: isUpdateSubmitting } = sessionsApiInstance.useUpdateItem();
+
+const isSubmitting = computed(() => isAddSubmitting || isUpdateSubmitting);
+
+// Define form validation schema using Yup
+const validationSchema = yup.object({
+  id: yup
+    .string()
+    .required("Session ID is required")
+    .min(3, "Session ID must be at least 3 characters")
+    .max(50, "Session ID must be less than 50 characters")
+    .matches(/^[a-zA-Z0-9_-]*$/, "Session ID can only contain alphanumeric characters, dashes and underscores"),
+  character: yup.object().nullable().required("Character is required"),
+  numberOfCovers: yup
+    .number()
+    .required("Number of covers is required")
+    .min(1, "Minimum value is 1"),
+  pathsList: yup.array().min(1, "At least one path must be selected"),
+  unloadType: yup.string().required("Unload Type is required"),
+  seller: yup
+    .object()
+    .nullable()
+    .when("unloadType", {
+      is: UnloadTypeEnum.SELLER,
+      then: yup
+        .object()
+        .required("Seller is required when unloading to seller")
+        .test(
+          "different-account",
+          "Seller must belong to a different account than the character",
+          function (value) {
+            const { character } = this.parent;
+            if (character && value) {
+              return character.account !== value.account;
+            }
+            return true;
+          }
+        )
+        .test(
+          "same-server",
+          "Seller must be on the same server as the character",
+          function (value) {
+            const { character } = this.parent;
+            if (character && value) {
+              return character.serverName === value.serverName;
+            }
+            return true;
+          }
+        ),
+    }),
+});
+
+// Quasar configuration for handling field errors
+const quasarConfig = (state) => ({
   props: {
-    currSessionId: {
-      type: String,
-      default: null,
-    },
+    error: !!state.errors[0],
+    "error-message": state.errors[0],
   },
-  methods: {
-    handleJobFiltersData(jobFilters) {
-      console.log("selectedJobsDetails", jobFilters);
-      this.jobFilters = jobFilters;
-    },
-    handleErrors(errors) {
-      for (const [key, value] of Object.entries(errors)) {
-        if (Array.isArray(value)) {
-          this.$q.notify({
-            color: "negative",
-            message: `${key}: ${value.join(" ")}`,
-            icon: "error",
-            position: "top",
-          });
-        }
-      }
-    },
-    filterFn(val, update) {
-      update(() => {
-        this.filterValue = val;
-      });
-      return;
-    },
-    clearFilter() {
-      this.filterValue = "";
-    },
-    clearInput() {
-      this.$refs.select.clear();
-    },
-    removePathOption(option) {
-      this.pathsList = this.pathsList.filter((o) => o.id !== option.id);
-    },
-    async confirm() {
-      let res = this.validateAccounts();
-      if (res !== true) {
-        this.$q.notify({
-          color: "negative",
-          message: res,
-          icon: "warning",
-          position: "top",
-          timeout: 1000,
-        });
-        return;
-      }
-      res = this.validateID(this.id);
-      if (res !== true) {
-        this.$q.notify({
-          color: "negative",
-          message: res,
-          icon: "warning",
-          position: "top",
-          timeout: 1000,
-        });
-        return;
-      }
-      let session = {
-        id: this.id,
-        character: this.character.id,
-        numberOfCovers: this.numberOfCovers,
-        unloadType: this.unloadType,
-        seller: this.seller?.id,
-        jobFilters: this.jobFilters,
-      };
-      if (this.pathsList.length > 1) {
-        session.pathsList = this.pathsList.map((p) => p.id);
-        session.type = SessionTypeEnum.MULTIPLE_PATHS_FARM;
-      } else {
-        session.path = this.pathsList[0].id;
-        session.type = SessionTypeEnum.FARM;
-      }
-      try {
-        await this.sessionStore.createSession(session);
-        this.closeModal();
-      } catch (error) {
-        this.handleErrors(error.response.data);
-      }
-    },
-    validateID(name) {
-      if (!name) {
-        return "Name is required.";
-      } else if (name.length < 3) {
-        return "Name must be at least 3 characters long.";
-      } else if (name.length > 50) {
-        return "Name must be less than 30 characters long.";
-      } else if (!/^[a-zA-Z0-9_-]*$/.test(name)) {
-        return "Name can only contain alphanumeric characters, dashes and underscores.";
-      }
-      return true;
-    },
-    validateAccounts() {
-      let characterAccountId = this.character?.account;
-      let sellerAccountId = this.seller?.account;
-      if (!characterAccountId) {
-        return "Character is required";
-      }
-      if (this.unloadType === UnloadTypeEnum.SELLER) {
-        if (!sellerAccountId)
-          return "Seller is required when unloading to aseller";
-        if (sellerAccountId === characterAccountId)
-          return "Seller must belong to a different account than the character";
-        if (this.seller.serverName !== this.character.serverName)
-          return "Seller must be on the same server as the character";
-      }
-      return true;
-    },
-    closeModal() {
-      this.id = null;
-      this.character = null;
-      this.seller = null;
-      this.pathsList = [];
-      this.jobFilters = [];
-      this.$emit("finished");
-    },
+});
+
+// Use the form with initial values and the validation schema
+const { handleSubmit, errors, resetForm, defineField } = useForm({
+  validationSchema,
+  initialValues: {
+    id: uuidv4(),
+    character: null,
+    numberOfCovers: 3,
+    pathsList: [],
+    unloadType: UnloadTypeEnum.BANK,
+    seller: null,
   },
-  watch: {
-    character: function (newval, oldval) {
-      if (!newval) {
-        this.character = null;
-        return;
-      }
-      if (
-        this.seller &&
-        (newval.serverName !== this.seller.serverName ||
-          newval.account === this.seller.account)
-      )
-        this.seller = null;
-    },
-    seller(newSeller, oldSeller) {
-      if (!newSeller) {
-        this.seller = null;
-        return;
-      }
-      if (
-        this.character &&
-        newSeller.account === oldSeller?.account &&
-        newSeller.serverName === oldSeller?.serverName
-      ) {
-        this.character = null;
-      }
-    },
-    unloadType(newVal, oldVal) {
-      if (newVal === UnloadTypeEnum.BANK) {
-        this.seller = null;
-      }
-    },
-  },
-  beforeRouteLeave(to, from, next) {
-    if (this.$q.notify.isActive) {
-      this.$q.notify.clear();
+});
+
+// Define fields with VeeValidate and Quasar configuration
+const [id, idAttrs] = defineField("id", quasarConfig);
+const [character, characterAttrs] = defineField("character", quasarConfig);
+const [numberOfCovers, numberOfCoversAttrs] = defineField("numberOfCovers", quasarConfig);
+const [pathsList, pathsListAttrs] = defineField("pathsList", quasarConfig);
+const [unloadType, unloadTypeAttrs] = defineField("unloadType", quasarConfig);
+const [seller, sellerAttrs] = defineField("seller", quasarConfig);
+
+const jobFilters = ref([]);
+
+// Submit handler for the form
+const onSubmit = handleSubmit(async (values) => {
+  try {
+    const session = {
+      ...values,
+      character: values.character?.id,
+      seller: values.seller?.id,
+      jobFilters: jobFilters.value,
+      type: values.pathsList.length > 1 ? SessionTypeEnum.MULTIPLE_PATHS_FARM : SessionTypeEnum.FARM,
+    };
+
+    if (session.type === SessionTypeEnum.FARM) {
+      session.path = session.pathsList[0].id;
+      delete session.pathsList;
+    } else {
+      session.pathsList = session.pathsList.map(p => p.id);
     }
-    next();
-  },
+
+    if (isEditMode.value) {
+      await updateSession({ id: props.currSessionId, newItem: session });
+    } else {
+      await addSession(session);
+    }
+    closeModal();
+  } catch (error) {
+    console.error("Error submitting form:", error);
+  }
+});
+
+// Character and seller selection logic
+const characterSelectOptions = computed(() => {
+  if (!characters.value || !seller.value) {
+    return characters.value || [];
+  }
+
+  return characters.value.filter((ch) => {
+    return (ch.account !== seller.value?.account);
+  });
+});
+
+const sellerSelectOptions = computed(() => {
+  if (!characters.value || !character.value) {
+    return characters.value || [];
+  }
+
+  return characters.value.filter((ch) => {
+    return (
+      ch.serverName === character.value.serverName &&
+      ch.account !== character.value.account
+    );
+  });
+});
+
+// Watchers for handling character and seller changes
+watch(character, (newval, oldval) => {
+  if (!newval) {
+    character.value = null;
+    return;
+  }
+  if (
+    seller.value &&
+    (newval.serverName !== seller.value.serverName ||
+      newval.account === seller.value.account)
+  ) {
+    seller.value = null;
+  }
+});
+
+watch(seller, (newSeller, oldSeller) => {
+  if (!newSeller) {
+    seller.value = null;
+    return;
+  }
+  if (
+    character.value &&
+    newSeller.account === character.value.account &&
+    newSeller.serverName === character.value.serverName
+  ) {
+    character.value = null;
+  }
+});
+
+watch(unloadType, (newVal) => {
+  if (newVal === UnloadTypeEnum.BANK) {
+    seller.value = null;
+  }
+});
+
+// Methods for filter and clearing inputs
+const filterCharacters = (val, update, abort) => {
+  update(() => {
+    const needle = val.toLowerCase();
+    characterSelectOptions.value = characters.value.filter(v => v.name.toLowerCase().indexOf(needle) > -1);
+  });
 };
+
+const filterPaths = (val, update, abort) => {
+  update(() => {
+    const needle = val.toLowerCase();
+    paths.value = paths.value.filter(v => v.id.toLowerCase().indexOf(needle) > -1);
+  });
+};
+
+const filterSellers = (val, update, abort) => {
+  update(() => {
+    const needle = val.toLowerCase();
+    sellerSelectOptions.value = sellerSelectOptions.value.filter(v => v.name.toLowerCase().indexOf(needle) > -1);
+  });
+};
+
+const removePathOption = (option) => {
+  pathsList.value = pathsList.value.filter((o) => o.id !== option.id);
+};
+
+const handleJobFiltersData = (filters) => {
+  jobFilters.value = filters;
+};
+
+// Close modal method
+const closeModal = () => {
+  emit("update:modelValue", false);
+  emit("finished");
+};
+
+// Session unload type choices
+const sessionUnloadTypeChoices = [
+  { label: "Bank", value: UnloadTypeEnum.BANK },
+  { label: "Seller", value: UnloadTypeEnum.SELLER },
+];
+
+// Lifecycle hook to set initial values if editing an existing session
+watch(aSession, (newSession) => {
+  if (newSession && isEditMode.value) {
+    resetForm({
+      values: {
+        id: newSession.id,
+        character: newSession.character,
+        numberOfCovers: newSession.numberOfCovers,
+        unloadType: newSession.unloadType,
+        seller: newSession.seller,
+        pathsList: newSession.type === SessionTypeEnum.MULTIPLE_PATHS_FARM ? newSession.pathsList : [newSession.path],
+      },
+    });
+    jobFilters.value = newSession.jobFilters || [];
+  }
+}, { immediate: true });
+
+/// Error handling for session loading
+watch(aSessionError, (error) => {
+  if (error && isEditMode.value) {
+    console.error("Error loading session:", error);
+    // You might want to show an error message to the user here
+  }
+});
+
+onMounted(() => {
+  if (!isEditMode.value) {
+    resetForm({
+      values: {
+        id: uuidv4(),
+        character: null,
+        numberOfCovers: 3,
+        pathsList: [],
+        unloadType: UnloadTypeEnum.BANK,
+        seller: null,
+      }
+    });
+    jobFilters.value = [];
+  }
+});
+
 </script>
 
 <style scoped>
 .min-width-800px {
   max-width: none !important;
   min-width: 800px;
+}
+.blur-content {
+  filter: blur(2px);
+  pointer-events: none;
 }
 </style>
