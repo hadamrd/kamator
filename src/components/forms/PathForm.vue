@@ -48,23 +48,41 @@
                 v-bind="startZoneIdAttrs"
               />
             </div>
-            <div v-if="needMapSelection">
-              <q-chip
-                v-for="mapId in mapIds"
-                :key="mapId"
-                removable
-                @remove="removeMapFromSelection(mapId)"
-              >
-                {{ mapId }}
-              </q-chip>
-              <q-btn
-                flat
-                dense
-                color="primary"
-                class="q-mt-md"
-                label="Open dofusMap"
-                @click="openDofusMap"
-              />
+            <div v-if="needMapSelection" class="q-mb-md">
+              <div class="row items-center q-mb-sm">
+                <q-input
+                  dense
+                  v-model="newMapId"
+                  label="Add Map ID"
+                  class="col"
+                  type="number"
+                  :rules="[val => !val || val > 0 || 'Must be a positive number']"
+                />
+                <q-btn
+                  flat
+                  dense
+                  color="primary"
+                  class="q-ml-sm"
+                  icon="add"
+                  @click="addMapId"
+                  :disable="!newMapId"
+                />
+              </div>
+              <div class="row q-gutter-sm wrap">
+                <q-chip
+                  v-for="mapId in mapIds"
+                  :key="mapId"
+                  removable
+                  @remove="removeMapFromSelection(mapId)"
+                  color="primary"
+                  text-color="white"
+                >
+                  Map ID: {{ mapId }}
+                </q-chip>
+              </div>
+              <div v-if="mapIdError" class="text-negative text-caption q-mt-sm">
+                {{ mapIdError }}
+              </div>
             </div>
             <q-card-actions align="center">
               <q-btn
@@ -94,17 +112,6 @@
       </q-card>
     </div>
   </q-dialog>
-  <q-dialog maximized v-model="showDofusMap">
-    <DofusMap
-      v-model="showDofusMap"
-      :pathCreatorMode="true"
-      @select="onMapsSelected"
-      :showTitleBar="true"
-      height="calc(100vh - 100px)"
-      :initialSelectedResources="initialSelectedResources"
-      :asPathCreator="true"
-    />
-  </q-dialog>
 </template>
 
 <script setup>
@@ -113,7 +120,6 @@ import { useForm } from "vee-validate";
 import * as yup from "yup";
 import pathsApiInstance from "src/api/paths";
 import { PathTypeEnum } from "src/enums/sessionEnums";
-import DofusMap from "components/widgets/DofusMap.vue";
 
 const emit = defineEmits(["update:modelValue"]);
 
@@ -129,6 +135,8 @@ const props = defineProps({
 });
 
 const isEditMode = computed(() => !!props.currPathId);
+const newMapId = ref("");
+const mapIdError = ref("");
 
 // Fetch data using API instances
 const { data: pathTypes, isLoading: isPathTypesLoading } = pathsApiInstance.useGetPathsTypeChoices();
@@ -195,37 +203,11 @@ const [startMapId, startMapIdAttrs] = defineField("startMapId", quasarConfig);
 const [startZoneId, startZoneIdAttrs] = defineField("startZoneId", quasarConfig);
 const [mapIds, mapIdsAttrs] = defineField("mapIds", quasarConfig);
 
-const showDofusMap = ref(false);
-
-const initialSelectedResources = [
-  {
-    name: "Aquajou",
-    id: 17991,
-    skillName: "Bûcheron",
-    skillId: "2",
-    dofusMapId: "65",
-  },
-  {
-    name: "Fer",
-    id: 312,
-    skillName: "Mineur",
-    skillId: "24",
-    dofusMapId: "68",
-  },
-  {
-    name: "Cuivre",
-    id: 441,
-    skillName: "Mineur",
-    skillId: "24",
-    dofusMapId: "67",
-  },
-];
-
 const pathTypesOptions = computed(() => {
   if (isPathTypesLoading.value) {
-    return []; // Return an empty array while loading
+    return [];
   }
-  return pathTypes?.value || []; // Use optional chaining
+  return pathTypes?.value || [];
 });
 
 const needStartVertex = computed(() =>
@@ -233,6 +215,27 @@ const needStartVertex = computed(() =>
 );
 
 const needMapSelection = computed(() => type.value === PathTypeEnum.CustomRandomFarmPath);
+
+const addMapId = () => {
+  const mapIdNum = Number(newMapId.value);
+  if (!mapIdNum || mapIdNum <= 0) {
+    mapIdError.value = "Please enter a valid positive number";
+    return;
+  }
+
+  if (mapIds.value.includes(mapIdNum)) {
+    mapIdError.value = "This Map ID already exists in the list";
+    return;
+  }
+
+  mapIds.value = [...mapIds.value, mapIdNum];
+  newMapId.value = "";
+  mapIdError.value = "";
+};
+
+const removeMapFromSelection = (mapIdToRemove) => {
+  mapIds.value = mapIds.value.filter((id) => id !== mapIdToRemove);
+};
 
 const onSubmit = handleSubmit(async (values) => {
   try {
@@ -250,29 +253,18 @@ const onSubmit = handleSubmit(async (values) => {
     closeWindow();
   } catch (error) {
     console.error("Error submitting form:", error);
-    // Handle the error, maybe show it to the user
   }
 });
 
-const removeMapFromSelection = (mapIdToRemove) => {
-  mapIds.value = mapIds.value.filter((id) => id !== mapIdToRemove);
-};
-
 const closeWindow = () => {
   resetForm();
+  newMapId.value = "";
+  mapIdError.value = "";
   emit("update:modelValue", false);
-};
-
-const openDofusMap = () => {
-  showDofusMap.value = true;
 };
 
 const handleUpdate = (value) => {
   emit("update:modelValue", value);
-};
-
-const onMapsSelected = (selectedMapsIds) => {
-  mapIds.value = selectedMapsIds;
 };
 
 // Watch for changes in the current path when in edit mode
@@ -296,7 +288,6 @@ watch(currentPath, (newPath) => {
 watch(pathError, (error) => {
   if (error && isEditMode.value) {
     console.error("Error loading path:", error);
-    // You might want to show an error message to the user here
   }
 });
 

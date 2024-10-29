@@ -1,172 +1,266 @@
 <template>
-  <q-dialog persistent>
+  <q-dialog persistent @hide="onDialogHide">
     <div class="q-pa-md q-ma-md min-width-800px">
       <q-card>
-        <q-card-section class="bg-primary text-center text-white">
-          <div class="text-h6">{{ isEditMode ? 'Edit' : 'Create' }} Solo Fight</div>
+        <!-- Header -->
+        <q-card-section class="bg-primary text-white">
+          <div class="row items-center">
+            <div class="text-h6 col">
+              {{ isEditMode ? "Edit" : "Create" }} Solo Fight
+            </div>
+            <q-btn
+              v-if="isDirty"
+              dense
+              flat
+              round
+              icon="restore"
+              @click="resetForm"
+            >
+              <q-tooltip>Reset Changes</q-tooltip>
+            </q-btn>
+          </div>
         </q-card-section>
+
+        <!-- Loading State -->
         <q-inner-loading :showing="isEditMode && isASessionLoading">
           <q-spinner-gears size="50px" color="primary" />
         </q-inner-loading>
-        <q-card-section class="q-pa-md q-ma-md" :class="{ 'blur-content': isEditMode && isASessionLoading }">
-          <q-input
-            dense
-            v-model="name"
-            label="Session Name"
-            class="q-mb-md"
-            v-bind="nameAttrs"
-            :disable="isEditMode"
-          />
-          <q-input
-            type="number"
-            dense
-            v-model.number="monsterLvlCoefDiff"
-            label="Monster Level Coefficient"
-            class="q-mb-md"
-            v-bind="monsterLvlCoefDiffAttrs"
-            step="0.1"
-          >
-            <template v-slot:append>
-              <div class="row items-center">
-                <q-btn
-                  dense
-                  flat
-                  icon="remove"
-                  @click="monsterLvlCoefDiff = Math.max(0.1, (parseFloat(monsterLvlCoefDiff) || 0) - 0.1)"
-                  :disable="monsterLvlCoefDiff <= 0.1"
+
+        <!-- Form Content -->
+        <q-card-section
+          class="q-pa-md q-ma-md scroll-container"
+          :class="{ 'blur-content': isEditMode && isASessionLoading }"
+        >
+          <!-- Session Name -->
+          <div class="form-group">
+            <q-input
+              dense
+              v-model="name"
+              label="Session Name"
+              class="q-mb-md"
+              v-bind="nameAttrs"
+              :disable="isEditMode"
+              @keydown.enter="focusNext"
+            >
+              <template v-slot:append>
+                <q-icon
+                  v-if="!isEditMode"
+                  name="auto_fix_high"
+                  class="cursor-pointer"
+                  @click="generateRandomName"
+                >
+                  <q-tooltip>Generate Random Name</q-tooltip>
+                </q-icon>
+              </template>
+            </q-input>
+          </div>
+
+          <!-- Combat Settings -->
+          <div class="form-group">
+            <div class="text-subtitle2 q-mb-sm">Combat Settings</div>
+            <q-input
+              type="number"
+              dense
+              v-model.number="monsterLvlCoefDiff"
+              label="Monster Level Coefficient"
+              class="q-mb-md"
+              v-bind="monsterLvlCoefDiffAttrs"
+              step="0.1"
+            >
+              <template v-slot:prepend>
+                <q-icon name="pest_control">
+                  <q-tooltip
+                    >Determines the level range of monsters to fight</q-tooltip
+                  >
+                </q-icon>
+              </template>
+            </q-input>
+
+            <q-input
+              type="number"
+              dense
+              v-model.number="fightsPerMinute"
+              label="Fights per minute"
+              class="q-mb-md"
+              v-bind="fightsPerMinuteAttrs"
+              step="1"
+            >
+              <template v-slot:prepend>
+                <q-icon name="timer">
+                  <q-tooltip>Number of fights to attempt per minute</q-tooltip>
+                </q-icon>
+              </template>
+            </q-input>
+          </div>
+
+          <!-- Character Selection -->
+          <div class="form-group">
+            <div class="text-subtitle2 q-mb-sm">Character Settings</div>
+            <q-select
+              class="q-mb-md"
+              dense
+              outlined
+              v-model="character"
+              v-bind="characterAttrs"
+              use-input
+              :options="filteredCharacters"
+              @filter="onFilterCharacters"
+              label="Main character"
+              option-label="name"
+              :loading="isCharactersLoading"
+            >
+              <template v-slot:no-option>
+                <q-item>
+                  <q-item-section class="text-grey">
+                    No characters found
+                  </q-item-section>
+                </q-item>
+              </template>
+              <template v-slot:option="scope">
+                <q-item v-bind="scope.itemProps">
+                  <q-item-section avatar>
+                    <q-avatar>
+                      <img :src="getCharacterAvatar(scope.opt.breedId)" />
+                    </q-avatar>
+                  </q-item-section>
+                  <q-item-section>
+                    <q-item-label>{{ scope.opt.name }}</q-item-label>
+                    <q-item-label caption
+                      >Level {{ scope.opt.level }} •
+                      {{ scope.opt.serverName }}</q-item-label
+                    >
+                  </q-item-section>
+                </q-item>
+              </template>
+              <template v-slot:append>
+                <q-icon
+                  name="close"
+                  class="cursor-pointer"
+                  @click.stop.prevent="character = null"
+                  v-show="character"
                 />
-                <q-btn
-                  dense
-                  flat
-                  icon="add"
-                  @click="monsterLvlCoefDiff = Math.round((parseFloat(monsterLvlCoefDiff) || 0) + 0.1 * 10) / 10"
+              </template>
+            </q-select>
+
+            <!-- Path Selection -->
+            <q-select
+              class="q-mb-md"
+              dense
+              outlined
+              v-model="path"
+              v-bind="pathAttrs"
+              :options="filteredPaths"
+              @filter="onFilterPaths"
+              label="Fight Path"
+              option-label="id"
+              :loading="isPathsLoading"
+              use-input
+            >
+              <template v-slot:no-option>
+                <q-item>
+                  <q-item-section class="text-grey">
+                    No paths found
+                  </q-item-section>
+                </q-item>
+              </template>
+              <template v-slot:append>
+                <q-icon
+                  name="close"
+                  class="cursor-pointer"
+                  @click.stop.prevent="path = null"
+                  v-show="path"
                 />
-              </div>
-            </template>
-          </q-input>
-          <q-input
-            type="number"
-            dense
-            v-model.number="fightsPerMinute"
-            label="Fights per minute"
-            class="q-mb-md"
-            v-bind="fightsPerMinuteAttrs"
-            step="1"
-          >
-            <template v-slot:append>
-              <div class="row items-center">
-                <q-btn
-                  dense
-                  flat
-                  icon="remove"
-                  @click="fightsPerMinute = Math.max(1, (parseInt(fightsPerMinute) || 0) - 1)"
-                  :disable="fightsPerMinute <= 1"
-                />
-                <q-btn
-                  dense
-                  flat
-                  icon="add"
-                  @click="fightsPerMinute = (parseInt(fightsPerMinute) || 0) + 1"
-                />
-              </div>
-            </template>
-          </q-input>
-          <q-select
-            class="q-mb-md"
-            dense
-            outlined
-            bottom-slots
-            v-model="character"
-            v-bind="characterAttrs"
-            use-input
-            :options="characterSelectOptions"
-            @filter="filterCharacters"
-            label="Main character"
-            option-label="name"
-            :loading="isCharactersLoading"
-          >
-            <template v-slot:append>
-              <q-icon
-                name="close"
-                class="cursor-pointer"
-                @click.stop.prevent="character = null"
-                :disable="!character"
-              />
-            </template>
-          </q-select>
-          <q-select
-            class="q-mb-md"
-            dense
-            outlined
-            bottom-slots
-            v-model="unloadType"
-            v-bind="unloadTypeAttrs"
-            :options="sessionUnloadTypeChoices"
-            label="Select unload Type"
-            option-label="label"
-            option-value="value"
-            emit-value
-            map-options
-          />
-          <q-select
-            class="q-mb-md"
-            dense
-            outlined
-            bottom-slots
-            v-model="path"
-            v-bind="pathAttrs"
-            :options="paths"
-            label="Select fight path"
-            option-label="id"
-            :loading="isPathsLoading"
-          >
-            <template v-slot:hint>The path that the bot will follow.</template>
-          </q-select>
-          <q-select
-            dense
-            outlined
-            bottom-slots
-            v-model="seller"
-            v-bind="sellerAttrs"
-            :options="sellerSelectOptions"
-            @filter="filterSellers"
-            use-input
-            label="Seller"
-            option-label="name"
-            v-show="unloadType === UnloadTypeEnum.SELLER"
-          >
-            <template v-slot:append>
-              <q-icon
-                name="close"
-                class="cursor-pointer"
-                @click.stop.prevent="seller = null"
-                :disable="!seller"
-              />
-            </template>
-            <template v-slot:hint>Character that will collect bots resources.</template>
-          </q-select>
+              </template>
+            </q-select>
+          </div>
+
+          <!-- Unload Settings -->
+          <div class="form-group">
+            <div class="text-subtitle2 q-mb-sm">Unload Configuration</div>
+            <q-select
+              class="q-mb-md"
+              dense
+              outlined
+              v-model="unloadType"
+              v-bind="unloadTypeAttrs"
+              :options="sessionUnloadTypeChoices"
+              label="Unload Type"
+              option-label="label"
+              option-value="value"
+              emit-value
+              map-options
+            >
+              <template v-slot:prepend>
+                <q-icon :name="unloadTypeIcon">
+                  <q-tooltip>{{ unloadTypeTooltip }}</q-tooltip>
+                </q-icon>
+              </template>
+            </q-select>
+
+            <q-slide-transition>
+              <q-select
+                v-show="unloadType === UnloadTypeEnum.SELLER"
+                dense
+                outlined
+                v-model="seller"
+                v-bind="sellerAttrs"
+                :options="filteredSellers"
+                @filter="onFilterSellers"
+                use-input
+                label="Seller Character"
+                option-label="name"
+              >
+                <template v-slot:option="scope">
+                  <q-item v-bind="scope.itemProps">
+                    <q-item-section avatar>
+                      <q-avatar>
+                        <img :src="getCharacterAvatar(scope.opt.breedId)" />
+                      </q-avatar>
+                    </q-item-section>
+                    <q-item-section>
+                      <q-item-label>{{ scope.opt.name }}</q-item-label>
+                      <q-item-label caption
+                        >Level {{ scope.opt.level }} •
+                        {{ scope.opt.serverName }}</q-item-label
+                      >
+                    </q-item-section>
+                  </q-item>
+                </template>
+                <template v-slot:append>
+                  <q-icon
+                    name="close"
+                    class="cursor-pointer"
+                    @click.stop.prevent="seller = null"
+                    v-show="seller"
+                  />
+                </template>
+              </q-select>
+            </q-slide-transition>
+          </div>
         </q-card-section>
-        <q-card-actions align="center">
+
+        <!-- Action Buttons -->
+        <q-card-actions align="right" class="bg-grey-1">
           <q-btn
             flat
             dense
-            color="primary"
-            class="q-mr-md"
-            :label="isEditMode ? 'Update' : 'Create'"
-            @click="onSubmit"
-            :loading="isSubmitting"
+            color="grey"
+            label="Cancel"
+            @click="onCancel"
+            :disable="isSubmitting"
           >
-            <q-icon :name="isEditMode ? 'update' : 'add'" />
+            <q-icon name="close" class="q-ml-sm" />
           </q-btn>
           <q-btn
             flat
             dense
-            color="negative"
-            class="q-ml-md"
-            label="Cancel"
-            @click="closeModal"
+            color="primary"
+            :label="isEditMode ? 'Update' : 'Create'"
+            @click="onSubmit"
+            :loading="isSubmitting"
+            :disable="!isFormValid || !isDirty"
           >
-            <q-icon name="close" />
+            <q-icon :name="isEditMode ? 'update' : 'add'" class="q-ml-sm" />
           </q-btn>
         </q-card-actions>
       </q-card>
@@ -183,9 +277,15 @@ import { SessionTypeEnum, UnloadTypeEnum } from "src/enums/sessionEnums";
 import sessionsApiInstance from "src/api/session";
 import pathsApiInstance from "src/api/paths";
 import charactersApiInstance from "src/api/characters";
+import { useNotify, useDebounce, useQuasarValidation } from "src/composables";
 
-const emit = defineEmits(["update:modelValue", "finished"]);
+const { quasarConfig } = useQuasarValidation();
 
+// Composables
+const { notify } = useNotify();
+const { debounce } = useDebounce();
+
+// Props and Emits
 const props = defineProps({
   currSessionId: {
     type: String,
@@ -193,34 +293,47 @@ const props = defineProps({
   },
 });
 
+const emit = defineEmits(["update:modelValue", "finished"]);
+
+// Computed Properties
 const isEditMode = computed(() => !!props.currSessionId);
+const isFormValid = computed(() => Object.keys(errors.value).length === 0);
+const isDirty = ref(false);
 
-// Fetch data using API instances
-const { data: characters, isLoading: isCharactersLoading } = charactersApiInstance.useGetItems();
-const { data: paths, isLoading: isPathsLoading } = pathsApiInstance.useGetItems();
+// API Data Fetching
+const { data: characters, isLoading: isCharactersLoading } =
+  charactersApiInstance.useGetItems();
 
-// Only fetch session data if we're in edit mode
+const { data: paths, isLoading: isPathsLoading } =
+  pathsApiInstance.useGetItems();
+
 const {
   data: aSession,
   isLoading: isASessionLoading,
-  error: aSessionError
+  error: aSessionError,
 } = isEditMode.value
   ? sessionsApiInstance.useGetItem(props.currSessionId)
   : { data: ref(null), isLoading: ref(false), error: ref(null) };
 
-const { mutate: addSession, isLoading: isAddSubmitting } = sessionsApiInstance.useAddItem();
-const { mutate: updateSession, isLoading: isUpdateSubmitting } = sessionsApiInstance.useUpdateItem();
+// Mutations
+const { mutate: addSession, isLoading: isAddSubmitting } =
+  sessionsApiInstance.useAddItem();
+const { mutate: updateSession, isLoading: isUpdateSubmitting } =
+  sessionsApiInstance.useUpdateItem();
 
 const isSubmitting = computed(() => isAddSubmitting || isUpdateSubmitting);
 
-// Define form validation schema using Yup
+// Form Validation Schema
 const validationSchema = yup.object({
   name: yup
     .string()
     .required("Session Name is required")
     .min(3, "Session Name must be at least 3 characters")
     .max(50, "Session Name must be less than 50 characters")
-    .matches(/^[a-zA-Z0-9_-]*$/, "Session Name can only contain alphanumeric characters, dashes and underscores"),
+    .matches(
+      /^[a-zA-Z0-9_-]*$/,
+      "Session Name can only contain alphanumeric characters, dashes and underscores"
+    ),
   character: yup.object().nullable().required("Character is required"),
   monsterLvlCoefDiff: yup
     .number()
@@ -229,7 +342,7 @@ const validationSchema = yup.object({
     .test(
       "decimal-places",
       "Value must have at most 1 decimal place",
-      value => !value || /^\d+(\.\d)?$/.test(value.toString())
+      (value) => !value || /^\d+(\.\d)?$/.test(value.toString())
     ),
   fightsPerMinute: yup
     .number()
@@ -238,31 +351,43 @@ const validationSchema = yup.object({
     .integer("Must be a whole number"),
   path: yup.object().nullable().required("Path is required"),
   unloadType: yup.string().required("Unload Type is required"),
-  seller: yup.mixed().when('unloadType', {
+  seller: yup.mixed().when("unloadType", {
     is: UnloadTypeEnum.SELLER,
-    then: () => yup.object().nullable().required("Seller is required when unloading to seller")
-      .test(
-        "different-account",
-        "Seller must belong to a different account than the character",
-        function (value) {
-          const { character } = this.parent;
-          return !character || !value || character.account !== value.account;
-        }
-      )
-      .test(
-        "same-server",
-        "Seller must be on the same server as the character",
-        function (value) {
-          const { character } = this.parent;
-          return !character || !value || character.serverName === value.serverName;
-        }
-      ),
-    otherwise: () => yup.mixed().nullable()
+    then: () =>
+      yup
+        .object()
+        .nullable()
+        .required("Seller is required when unloading to seller")
+        .test(
+          "different-account",
+          "Seller must belong to a different account than the character",
+          function (value) {
+            const { character } = this.parent;
+            return !character || !value || character.account !== value.account;
+          }
+        )
+        .test(
+          "same-server",
+          "Seller must be on the same server as the character",
+          function (value) {
+            const { character } = this.parent;
+            return (
+              !character || !value || character.serverName === value.serverName
+            );
+          }
+        ),
+    otherwise: () => yup.mixed().nullable(),
   }),
 });
 
-// Use the form with initial values and the validation schema
-const { handleSubmit, errors, resetForm, defineField } = useForm({
+// Form Setup
+const {
+  handleSubmit,
+  errors,
+  resetForm,
+  defineField,
+  values: formValues,
+} = useForm({
   validationSchema,
   initialValues: {
     name: "",
@@ -275,24 +400,116 @@ const { handleSubmit, errors, resetForm, defineField } = useForm({
   },
 });
 
-// Quasar configuration for handling field errors
-const quasarConfig = (state) => ({
-  props: {
-    error: !!state.errors[0],
-    "error-message": state.errors[0],
-  },
-});
-
-// Define fields with VeeValidate and Quasar configuration
+// Field Definitions
 const [name, nameAttrs] = defineField("name", quasarConfig);
 const [character, characterAttrs] = defineField("character", quasarConfig);
-const [monsterLvlCoefDiff, monsterLvlCoefDiffAttrs] = defineField("monsterLvlCoefDiff", quasarConfig);
-const [fightsPerMinute, fightsPerMinuteAttrs] = defineField("fightsPerMinute", quasarConfig);
+const [monsterLvlCoefDiff, monsterLvlCoefDiffAttrs] = defineField(
+  "monsterLvlCoefDiff",
+  quasarConfig
+);
+const [fightsPerMinute, fightsPerMinuteAttrs] = defineField(
+  "fightsPerMinute",
+  quasarConfig
+);
 const [path, pathAttrs] = defineField("path", quasarConfig);
 const [unloadType, unloadTypeAttrs] = defineField("unloadType", quasarConfig);
 const [seller, sellerAttrs] = defineField("seller", quasarConfig);
 
-// Submit handler for the form
+// Filtering state
+const characterFilter = ref("");
+const pathFilter = ref("");
+const sellerFilter = ref("");
+
+// Computed properties for filtering
+const filteredCharacters = computed(() => {
+  if (!characters.value) return [];
+
+  const searchTerm = characterFilter.value.toLowerCase();
+  if (!searchTerm) return characters.value;
+
+  return characters.value.filter(
+    (char) =>
+      char.name.toLowerCase().includes(searchTerm) ||
+      char.serverName.toLowerCase().includes(searchTerm)
+  );
+});
+
+const filteredPaths = computed(() => {
+  if (!paths.value) return [];
+
+  const searchTerm = pathFilter.value.toLowerCase();
+  if (!searchTerm) return paths.value;
+
+  return paths.value.filter((path) =>
+    path.id.toLowerCase().includes(searchTerm)
+  );
+});
+
+const filteredSellers = computed(() => {
+  if (!characters.value || !character.value) return [];
+
+  const searchTerm = sellerFilter.value.toLowerCase();
+  let filtered = characters.value.filter(
+    (char) =>
+      char.serverName === character.value.serverName &&
+      char.account !== character.value.account
+  );
+
+  if (searchTerm) {
+    filtered = filtered.filter(
+      (char) =>
+        char.name.toLowerCase().includes(searchTerm) ||
+        char.serverName.toLowerCase().includes(searchTerm)
+    );
+  }
+
+  return filtered;
+});
+
+// UI helper computed properties
+const unloadTypeIcon = computed(() => {
+  return unloadType.value === UnloadTypeEnum.BANK ? "account_balance" : "store";
+});
+
+const unloadTypeTooltip = computed(() => {
+  return unloadType.value === UnloadTypeEnum.BANK
+    ? "Resources will be stored in the bank"
+    : "Resources will be transferred to a seller character";
+});
+
+// Session type choices
+const sessionUnloadTypeChoices = [
+  { label: "Bank", value: UnloadTypeEnum.BANK },
+  { label: "Seller", value: UnloadTypeEnum.SELLER },
+];
+
+// Debounced filter handlers
+const onFilterCharacters = debounce((val, update) => {
+  characterFilter.value = val;
+  update();
+}, 300);
+
+const onFilterPaths = debounce((val, update) => {
+  pathFilter.value = val;
+  update();
+}, 300);
+
+const onFilterSellers = debounce((val, update) => {
+  sellerFilter.value = val;
+  update();
+}, 300);
+
+// Name generation helper
+const generateRandomName = () => {
+  const prefix = ["Fight", "Battle", "Combat", "Arena", "Duel"];
+  const suffix = ["Session", "Run", "Instance", "Route", "Path"];
+  const randomPrefix = prefix[Math.floor(Math.random() * prefix.length)];
+  const randomSuffix = suffix[Math.floor(Math.random() * suffix.length)];
+  const randomNum = Math.floor(Math.random() * 1000);
+  name.value = `${randomPrefix}_${randomSuffix}_${randomNum}`;
+};
+
+// Form submission handler
 const onSubmit = handleSubmit(async (values) => {
   try {
     const session = {
@@ -305,114 +522,33 @@ const onSubmit = handleSubmit(async (values) => {
 
     if (isEditMode.value) {
       await updateSession({ id: props.currSessionId, newItem: session });
+      notify.success("Session updated successfully");
     } else {
       await addSession(session);
+      notify.success("Session created successfully");
     }
     closeModal();
   } catch (error) {
     console.error("Error submitting form:", error);
+    notify.error(error.response?.data?.message || "Error submitting form");
   }
 });
 
-// Character and seller selection logic
-const characterSelectOptions = computed(() => {
-  if (!characters.value || !seller.value) {
-    return characters.value || [];
-  }
-
-  return characters.value.filter((ch) => {
-    return (ch.account !== seller.value?.account);
-  });
-});
-
-const sellerSelectOptions = computed(() => {
-  if (!characters.value || !character.value) {
-    return characters.value || [];
-  }
-
-  return characters.value.filter((ch) => {
-    return (
-      ch.serverName === character.value.serverName &&
-      ch.account !== character.value.account
-    );
-  });
-});
-
-// Filter functions
-const filterCharacters = (val, update, abort) => {
-  update(() => {
-    const needle = val.toLowerCase();
-    characterSelectOptions.value = characters.value.filter(v => v.name.toLowerCase().indexOf(needle) > -1);
-  });
+// Utility functions
+const getCharacterAvatar = (breedId) => {
+  return new URL(`/src/assets/classes/symbol_${breedId}.png`, import.meta.url)
+    .href;
 };
 
-const filterSellers = (val, update, abort) => {
-  update(() => {
-    const needle = val.toLowerCase();
-    sellerSelectOptions.value = sellerSelectOptions.value.filter(v => v.name.toLowerCase().indexOf(needle) > -1);
-  });
+const focusNext = (e) => {
+  const inputs = document.querySelectorAll("input, select");
+  const currentIndex = Array.from(inputs).indexOf(e.target);
+  if (currentIndex < inputs.length - 1) {
+    inputs[currentIndex + 1].focus();
+  }
 };
 
-// Watchers for session loading and errors
-watch(aSession, (newSession) => {
-  if (newSession && isEditMode.value) {
-    resetForm({
-      values: {
-        name: newSession.name,
-        character: newSession.character,
-        monsterLvlCoefDiff: newSession.monsterLvlCoefDiff,
-        fightsPerMinute: newSession.fightsPerMinute,
-        path: newSession.path,
-        unloadType: newSession.unloadType,
-        seller: newSession.seller,
-      },
-    });
-  }
-}, { immediate: true });
-
-watch(aSessionError, (error) => {
-  if (error && isEditMode.value) {
-    console.error("Error loading session:", error);
-    // You might want to show an error message to the user here
-  }
-});
-
-// Watchers for character and seller changes
-watch(character, (newval, oldval) => {
-  if (!newval) {
-    character.value = null;
-    return;
-  }
-  if (
-    seller.value &&
-    (newval.serverName !== seller.value.serverName ||
-      newval.account === seller.value.account)
-  ) {
-    seller.value = null;
-  }
-});
-
-watch(seller, (newSeller, oldSeller) => {
-  if (!newSeller) {
-    seller.value = null;
-    return;
-  }
-  if (
-    character.value &&
-    newSeller.account === character.value.account &&
-    newSeller.serverName === character.value.serverName
-  ) {
-    character.value = null;
-  }
-});
-
-watch(unloadType, (newVal) => {
-  if (newVal === UnloadTypeEnum.BANK) {
-    seller.value = null;
-  }
-});
-
-// Initialize form on mount
+// Lifecycle hooks and watchers
 onMounted(() => {
   if (!isEditMode.value) {
     resetForm({
@@ -424,20 +560,123 @@ onMounted(() => {
         path: null,
         unloadType: UnloadTypeEnum.BANK,
         seller: null,
-      }
+      },
     });
   }
 });
 
-// Session unload type choices
-const sessionUnloadTypeChoices = [
-  { label: "Bank", value: UnloadTypeEnum.BANK },
-  { label: "Seller", value: UnloadTypeEnum.SELLER },
-];
+// Watch for session data changes
+watch(
+  aSession,
+  (newSession) => {
+    if (newSession && isEditMode.value) {
+      resetForm({
+        values: {
+          name: newSession.name,
+          character: newSession.character,
+          monsterLvlCoefDiff: newSession.monsterLvlCoefDiff,
+          fightsPerMinute: newSession.fightsPerMinute,
+          path: newSession.path,
+          unloadType: newSession.unloadType,
+          seller: newSession.seller,
+        },
+      });
+    }
+  },
+  { immediate: true }
+);
 
-// Close modal method
+// Watch for form value changes to track dirty state
+watch(
+  formValues,
+  () => {
+    isDirty.value = true;
+  },
+  { deep: true }
+);
+
+// Error handling
+watch(aSessionError, (error) => {
+  if (error && isEditMode.value) {
+    console.error("Error loading session:", error);
+    notify.error("Error loading session data");
+  }
+});
+
+// Modal handling
+const onDialogHide = () => {
+  if (isDirty.value) {
+    // Optionally show confirmation dialog
+    closeModal();
+  } else {
+    closeModal();
+  }
+};
+
+const onCancel = () => {
+  if (isDirty.value) {
+    // Optionally show confirmation dialog
+    closeModal();
+  } else {
+    closeModal();
+  }
+};
+
 const closeModal = () => {
   emit("update:modelValue", false);
   emit("finished");
 };
 </script>
+
+<style scoped>
+.min-width-800px {
+  max-width: none !important;
+  min-width: 800px;
+}
+
+.blur-content {
+  filter: blur(2px);
+  pointer-events: none;
+}
+
+.scroll-container {
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.form-group {
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+}
+
+.form-group:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+/* Smooth transitions */
+.q-slide-transition {
+  transition: all 0.3s ease;
+}
+
+/* Custom scrollbar */
+.scroll-container::-webkit-scrollbar {
+  width: 8px;
+}
+
+.scroll-container::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.scroll-container::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
+}
+
+.scroll-container::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+</style>

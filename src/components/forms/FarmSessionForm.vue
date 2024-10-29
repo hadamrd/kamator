@@ -163,7 +163,9 @@ import JobResourceSelector from "components/widgets/JobResourceSelector.vue";
 import sessionsApiInstance from "src/api/session";
 import pathsApiInstance from "src/api/paths";
 import charactersApiInstance from "src/api/characters";
+import { useQuasarValidation } from 'src/composables';
 
+const { quasarConfig } = useQuasarValidation();
 const emit = defineEmits(["update:modelValue", "finished"]);
 
 const props = defineProps({
@@ -231,13 +233,6 @@ const validationSchema = yup.object({
   }),
 });
 
-// Quasar configuration for handling field errors
-const quasarConfig = (state) => ({
-  props: {
-    error: !!state.errors[0],
-    "error-message": state.errors[0],
-  },
-});
 
 // Use the form with initial values and the validation schema
 const { handleSubmit, errors, resetForm, defineField } = useForm({
