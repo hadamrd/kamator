@@ -3,12 +3,17 @@
     <div class="q-pa-md q-ma-md min-width-800px">
       <q-card>
         <q-card-section class="bg-primary text-center text-white">
-          <div class="text-h6">{{ isEditMode ? 'Edit' : 'Create' }} Group Fight</div>
+          <div class="text-h6">
+            {{ isEditMode ? "Edit" : "Create" }} Group Fight
+          </div>
         </q-card-section>
         <q-inner-loading :showing="isEditMode && isASessionLoading">
           <q-spinner-gears size="50px" color="primary" />
         </q-inner-loading>
-        <q-card-section class="q-pa-md q-ma-md" :class="{ 'blur-content': isEditMode && isASessionLoading }">
+        <q-card-section
+          class="q-pa-md q-ma-md"
+          :class="{ 'blur-content': isEditMode && isASessionLoading }"
+        >
           <q-input
             dense
             v-model="id"
@@ -47,7 +52,9 @@
             option-label="name"
             :loading="isCharactersLoading"
           >
-            <template v-slot:hint>Character that will lead the bots party.</template>
+            <template v-slot:hint
+              >Character that will lead the bots party.</template
+            >
             <template v-slot:append>
               <q-icon
                 name="close"
@@ -74,14 +81,17 @@
             @filter="filterFollowers"
             :loading="isCharactersLoading"
           >
-            <template v-slot:hint>Characters that will follow the leader.</template>
+            <template v-slot:hint
+              >Characters that will follow the leader.</template
+            >
             <template v-slot:selected-item="{ opt }">
               <q-chip
                 dense
                 class="q-mr-xs"
                 removable
                 @remove="removeFollower(opt)"
-              >{{ opt.name }}</q-chip>
+                >{{ opt.name }}</q-chip
+              >
             </template>
             <template v-slot:append>
               <q-icon
@@ -104,7 +114,9 @@
             option-label="label"
             option-value="value"
           >
-            <template v-slot:hint>How would you like the bot to unload when full.</template>
+            <template v-slot:hint
+              >How would you like the bot to unload when full.</template
+            >
           </q-select>
           <q-select
             class="q-mb-md"
@@ -142,7 +154,9 @@
                 :disable="!seller"
               />
             </template>
-            <template v-slot:hint>Character that will collect the resources.</template>
+            <template v-slot:hint
+              >Character that will collect the resources.</template
+            >
           </q-select>
         </q-card-section>
         <q-card-actions align="center">
@@ -182,6 +196,11 @@ import { SessionTypeEnum, UnloadTypeEnum } from "src/enums/sessionEnums";
 import sessionsApiInstance from "src/api/session";
 import pathsApiInstance from "src/api/paths";
 import charactersApiInstance from "src/api/characters";
+import { useQuasar } from 'quasar';
+import { useNotify } from 'src/composables/useNotify';
+
+const q = useQuasar();
+const { notify } = useNotify();
 
 const emit = defineEmits(["update:modelValue", "finished"]);
 
@@ -195,20 +214,24 @@ const props = defineProps({
 const isEditMode = computed(() => !!props.currSessionId);
 
 // Fetch data using API instances
-const { data: characters, isLoading: isCharactersLoading } = charactersApiInstance.useGetItems();
-const { data: paths, isLoading: isPathsLoading } = pathsApiInstance.useGetItems();
+const { data: characters, isLoading: isCharactersLoading } =
+  charactersApiInstance.useGetItems();
+const { data: paths, isLoading: isPathsLoading } =
+  pathsApiInstance.useGetItems();
 
 // Only fetch session data if we're in edit mode
 const {
   data: aSession,
   isLoading: isASessionLoading,
-  error: aSessionError
+  error: aSessionError,
 } = isEditMode.value
   ? sessionsApiInstance.useGetItem(props.currSessionId)
   : { data: ref(null), isLoading: ref(false), error: ref(null) };
 
-const { mutate: addSession, isLoading: isAddSubmitting } = sessionsApiInstance.useAddItem();
-const { mutate: updateSession, isLoading: isUpdateSubmitting } = sessionsApiInstance.useUpdateItem();
+const { mutate: addSession, isLoading: isAddSubmitting } =
+  sessionsApiInstance.useAddItem();
+const { mutate: updateSession, isLoading: isUpdateSubmitting } =
+  sessionsApiInstance.useUpdateItem();
 
 const isSubmitting = computed(() => isAddSubmitting || isUpdateSubmitting);
 
@@ -219,11 +242,58 @@ const validationSchema = yup.object({
     .required("Session ID is required")
     .min(3, "Session ID must be at least 3 characters")
     .max(50, "Session ID must be less than 50 characters")
-    .matches(/^[a-zA-Z0-9_-]*$/, "Session ID can only contain alphanumeric characters, dashes and underscores"),
+    .matches(
+      /^[a-zA-Z0-9_-]*$/,
+      "Session ID can only contain alphanumeric characters, dashes and underscores"
+    ),
   character: yup.object().nullable().required("Character is required"),
-  monsterLvlCoefDiff: yup.number().required("Monster Coef Diff is required").min(0, "Minimum value is 0"),
-  fightsPerMinute: yup.number().required("Fights per minute is required").min(1, "Minimum value is 1"),
-  followers: yup.array().of(yup.object()),
+  monsterLvlCoefDiff: yup
+    .number()
+    .required("Monster Coef Diff is required")
+    .min(0, "Minimum value is 0"),
+  fightsPerMinute: yup
+    .number()
+    .required("Fights per minute is required")
+    .min(1, "Minimum value is 1"),
+  followers: yup
+    .array()
+    .of(yup.object())
+    .test(
+      "unique-accounts",
+      "Followers must be from different accounts",
+      function (followers) {
+        if (!followers) return true;
+        const accounts = followers.map((f) => f.account);
+        return new Set(accounts).size === accounts.length;
+      }
+    )
+    .test(
+      "server-match",
+      "All followers must be on the same server as the leader",
+      function (followers) {
+        const { character } = this.parent;
+        if (!character || !followers) return true;
+        return followers.every((f) => f.serverName === character.serverName);
+      }
+    )
+    .test(
+      "different-from-leader",
+      "Followers cannot include the leader character",
+      function (followers) {
+        const { character } = this.parent;
+        if (!character || !followers) return true;
+        return !followers.some((f) => f.id === character.id);
+      }
+    )
+    .test(
+      "different-from-seller",
+      "Followers cannot include the seller character",
+      function (followers) {
+        const { seller } = this.parent;
+        if (!seller || !followers) return true;
+        return !followers.some((f) => f.id === seller.id);
+      }
+    ),
   unloadType: yup.string().required("Unload Type is required"),
   path: yup.object().nullable().required("Path is required"),
   seller: yup
@@ -268,7 +338,7 @@ const quasarConfig = (state) => ({
 });
 
 // Use the form with initial values and the validation schema
-const { handleSubmit, errors, resetForm, defineField } = useForm({
+const { handleSubmit, errors, resetForm, defineField, values: formValues } = useForm({
   validationSchema,
   initialValues: {
     id: uuidv4(),
@@ -282,25 +352,39 @@ const { handleSubmit, errors, resetForm, defineField } = useForm({
   },
 });
 
+watch(
+  formValues,
+  () => {
+    isDirty.value = true;
+  },
+  { deep: true }
+);
+
+
 // Define fields with VeeValidate and Quasar configuration
 const [id, idAttrs] = defineField("id", quasarConfig);
 const [character, characterAttrs] = defineField("character", quasarConfig);
-const [monsterLvlCoefDiff, monsterLvlCoefDiffAttrs] = defineField("monsterLvlCoefDiff", quasarConfig);
-const [fightsPerMinute, fightsPerMinuteAttrs] = defineField("fightsPerMinute", quasarConfig);
+const [monsterLvlCoefDiff, monsterLvlCoefDiffAttrs] = defineField(
+  "monsterLvlCoefDiff",
+  quasarConfig
+);
+const [fightsPerMinute, fightsPerMinuteAttrs] = defineField(
+  "fightsPerMinute",
+  quasarConfig
+);
 const [followers, followersAttrs] = defineField("followers", quasarConfig);
 const [unloadType, unloadTypeAttrs] = defineField("unloadType", quasarConfig);
 const [path, pathAttrs] = defineField("path", quasarConfig);
 const [seller, sellerAttrs] = defineField("seller", quasarConfig);
 
-
 // Computed properties for select options
 const characterSelectOptions = computed(() => {
-  if (!characters.value || !seller.value) {
-    return characters.value || [];
-  }
+  if (!characters.value) return [];
 
-  return characters.value.filter((ch) => {
-    return (ch.account !== seller.value?.account);
+  const baseOptions = characterFilter.value ? characterOptions.value : characters.value;
+
+  return baseOptions.filter(ch => {
+    return !seller.value || ch.account !== seller.value.account;
   });
 });
 
@@ -310,11 +394,16 @@ const followersSelectOptions = computed(() => {
   }
 
   return characters.value.filter((follower) => {
-    const notSameCharacterAccount = follower.account !== character.value.account;
-    const notSameSellerAccount = !seller.value || follower.account !== seller.value.account;
-    const sameCharacterServer = follower.serverName === character.value.serverName;
+    const notSameCharacterAccount =
+      follower.account !== character.value.account;
+    const notSameSellerAccount =
+      !seller.value || follower.account !== seller.value.account;
+    const sameCharacterServer =
+      follower.serverName === character.value.serverName;
 
-    return sameCharacterServer && notSameCharacterAccount && notSameSellerAccount;
+    return (
+      sameCharacterServer && notSameCharacterAccount && notSameSellerAccount
+    );
   });
 });
 
@@ -324,36 +413,62 @@ const sellerSelectOptions = computed(() => {
   }
 
   return characters.value.filter((seller) => {
-    const notSameAccountAsCharacter = seller.account !== character.value.account;
+    const notSameAccountAsCharacter =
+      seller.account !== character.value.account;
     const notTheCharacterItself = seller.id !== character.value.id;
     const sameServer = seller.serverName === character.value.serverName;
     const notAFollowerAccount = !followers.value.some(
       (follower) => follower.account === seller.account
     );
 
-    return sameServer && notSameAccountAsCharacter && notTheCharacterItself && notAFollowerAccount;
+    return (
+      sameServer &&
+      notSameAccountAsCharacter &&
+      notTheCharacterItself &&
+      notAFollowerAccount
+    );
   });
 });
 
+const characterFilter = ref("");
+const characterOptions = ref([]);
+const followersFilter = ref("");
+const followersOptions = ref([]);
+const sellerFilter = ref("");
+const sellerOptions = ref([]);
+const isDirty = ref(false);
+
 // Filter functions
-const filterCharacters = (val, update, abort) => {
+const filterCharacters = (val, update) => {
+  characterFilter.value = val;
   update(() => {
     const needle = val.toLowerCase();
-    characterSelectOptions.value = characters.value.filter(v => v.name.toLowerCase().indexOf(needle) > -1);
+    characterOptions.value = characters.value?.filter(
+      v => v.name.toLowerCase().includes(needle) ||
+          v.serverName.toLowerCase().includes(needle)
+    ) || [];
   });
 };
 
-const filterFollowers = (val, update, abort) => {
+const filterFollowers = (val, update) => {
+  followersFilter.value = val;
   update(() => {
     const needle = val.toLowerCase();
-    followersSelectOptions.value = followersSelectOptions.value.filter(v => v.name.toLowerCase().indexOf(needle) > -1);
+    followersOptions.value = followersSelectOptions.value?.filter(
+      v => v.name.toLowerCase().includes(needle) ||
+          v.serverName.toLowerCase().includes(needle)
+    ) || [];
   });
 };
 
-const filterSellers = (val, update, abort) => {
+const filterSellers = (val, update) => {
+  sellerFilter.value = val;
   update(() => {
     const needle = val.toLowerCase();
-    sellerSelectOptions.value = sellerSelectOptions.value.filter(v => v.name.toLowerCase().indexOf(needle) > -1);
+    sellerOptions.value = sellerSelectOptions.value?.filter(
+      v => v.name.toLowerCase().includes(needle) ||
+          v.serverName.toLowerCase().includes(needle)
+    ) || [];
   });
 };
 
@@ -362,7 +477,21 @@ const removeFollower = (option) => {
 };
 
 // Close modal method
-const closeModal = () => {
+const closeModal = async () => {
+  if (isDirty.value) {
+    try {
+      await q.dialog({
+        title: 'Confirm',
+        message: 'You have unsaved changes. Are you sure you want to close?',
+        cancel: true,
+        persistent: true
+      });
+    } catch {
+      return; // User cancelled
+    }
+  }
+
+  isDirty.value = false; // Reset dirty state
   emit("update:modelValue", false);
   emit("finished");
 };
@@ -374,22 +503,26 @@ const sessionUnloadTypeChoices = [
 ];
 
 // Lifecycle hook to set initial values if editing an existing session
-watch(aSession, (newSession) => {
-  if (newSession && isEditMode.value) {
-    resetForm({
-      values: {
-        id: newSession.id,
-        character: newSession.character,
-        monsterLvlCoefDiff: newSession.monsterLvlCoefDiff,
-        fightsPerMinute: newSession.fightsPerMinute,
-        followers: newSession.followers,
-        unloadType: newSession.unloadType,
-        path: newSession.path,
-        seller: newSession.seller,
-      },
-    });
-  }
-}, { immediate: true });
+watch(
+  aSession,
+  (newSession) => {
+    if (newSession && isEditMode.value) {
+      resetForm({
+        values: {
+          id: newSession.id,
+          character: newSession.character,
+          monsterLvlCoefDiff: newSession.monsterLvlCoefDiff,
+          fightsPerMinute: newSession.fightsPerMinute,
+          followers: newSession.followers,
+          unloadType: newSession.unloadType,
+          path: newSession.path,
+          seller: newSession.seller,
+        },
+      });
+    }
+  },
+  { immediate: true }
+);
 
 // Error handling for session loading
 watch(aSessionError, (error) => {
@@ -414,7 +547,7 @@ watch(character, (newval, oldval) => {
   }
   // Reset followers if they're not on the same server as the new character
   followers.value = followers.value.filter(
-    follower => follower.serverName === newval.serverName
+    (follower) => follower.serverName === newval.serverName
   );
 });
 
@@ -432,7 +565,7 @@ watch(seller, (newSeller, oldSeller) => {
   }
   // Remove followers that are on the same account as the new seller
   followers.value = followers.value.filter(
-    follower => follower.account !== newSeller.account
+    (follower) => follower.account !== newSeller.account
   );
 });
 
@@ -454,48 +587,103 @@ onMounted(() => {
         unloadType: UnloadTypeEnum.BANK,
         path: null,
         seller: null,
-      }
+      },
     });
   }
 });
 
-// Helper function to handle API errors
-const handleApiError = (error) => {
-  if (error.response && error.response.data) {
-    const serverErrors = error.response.data;
-    for (const field in serverErrors) {
-      if (typeof errors[field] === 'function') {
-        errors[field](String(serverErrors[field][0]));
-      }
-    }
-  } else {
-    console.error("An error occurred:", error);
-    // You might want to show a generic error message to the user here
-  }
-};
-
-// Update the onSubmit function to use the error handler
+// Update the onSubmit handler to create multiple sessions
 const onSubmit = handleSubmit(async (values) => {
   try {
-    const session = {
-      ...values,
+    const totalSessions = 1 + values.followers.length;
+
+    try {
+      await q.dialog({
+        title: 'Confirm Session Creation',
+        message: `This will create ${totalSessions} sessions:\n` +
+          `• 1 Group Fight session for ${values.character?.name}\n` +
+          `• ${values.followers.length} Mule Fight session(s) for followers\n` +
+          'Do you want to continue?',
+        cancel: true,
+        persistent: true
+      });
+    } catch {
+      return; // User cancelled
+    }
+
+    const leaderSession = {
+      id: values.id,
       character: values.character?.id,
-      followers: values.followers.map(f => f.id),
+      monsterLvlCoefDiff: values.monsterLvlCoefDiff,
+      fightsPerMinute: values.fightsPerMinute,
       path: values.path?.id,
+      unloadType: values.unloadType,
       seller: values.seller?.id,
       type: SessionTypeEnum.GROUP_FIGHT,
+      followers: values.followers.map(f => f.id)
     };
 
+    const muleSessions = values.followers.map((follower, index) => ({
+      id: `${values.id}_mule_${index + 1}`,
+      character: follower.id,
+      leader: values.character?.id,
+      unloadType: values.unloadType,
+      seller: values.seller?.id,
+      type: SessionTypeEnum.MULE_FIGHT
+    }));
+
     if (isEditMode.value) {
-      await updateSession({ id: props.currSessionId, newItem: session });
+      await updateSession({
+        id: props.currSessionId,
+        newItem: leaderSession
+      });
+
+      for (const session of muleSessions) {
+        await addSession(session);
+      }
+
+      notify.success("Sessions updated successfully");
     } else {
-      await addSession(session);
+      await addSession(leaderSession);
+
+      for (const session of muleSessions) {
+        await addSession(session);
+      }
+
+      notify.success(`Created ${totalSessions} sessions successfully`);
     }
+
+    isDirty.value = false; // Reset dirty state before closing
     closeModal();
   } catch (error) {
-    handleApiError(error);
+    console.error("Error submitting sessions:", error);
+    if (error.response?.data) {
+      const errorMessages = Object.entries(error.response.data)
+        .map(([field, messages]) => `${field}: ${messages.join(', ')}`)
+        .join('\n');
+      notify.error(`Failed to create sessions:\n${errorMessages}`);
+    } else {
+      notify.error(error.message || "Failed to create sessions");
+    }
   }
 });
+
+// 8. Update resetForm function to handle dirty state
+const handleResetForm = () => {
+  resetForm();
+  isDirty.value = false;
+};
+
+// 9. Update the onCancel handler
+const onCancel = () => {
+  closeModal();
+};
+
+// 10. Add handler for dialog hide
+const onDialogHide = () => {
+  closeModal();
+};
+
 </script>
 
 <style scoped>
