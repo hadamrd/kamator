@@ -22,11 +22,16 @@
             <q-item-label>Activity : {{ session.type }}</q-item-label>
             <q-item-label class="text-h7">Current Status: <span class="highlight">{{ sessionRun?.status }}</span></q-item-label>
             <q-item-label class="text-h8">Current MapId: <span class="highlight">{{ sessionRun?.currentMapId }}</span></q-item-label>
+            <!-- Added current path and sleeping status -->
+            <q-item-label class="text-h8">Current Path: <span class="highlight">{{ sessionRun?.currentPathName || 'None' }}</span></q-item-label>
+            <q-item-label class="text-h8">
+              Status:
+              <span class="highlight">{{ sessionRun?.isSleeping ? 'Sleeping' : 'Active' }}</span>
+            </q-item-label>
           </div>
         </div>
       </q-card-section>
     </q-card>
-
 
     <!-- Session Run Info Card -->
     <q-card v-if="!isSessionLoading && !isSessionError">
@@ -42,18 +47,25 @@
         </div>
         <div v-else class="details-grid">
           <div class="details-column">
+            <div class="section-title">Income & Earnings</div>
             <q-item-label>Earned Net Kamas: <span class="highlight">{{ sessionRun.earnedKamas }}</span></q-item-label>
+            <q-item-label>Estimated Kamas Won: <span class="highlight">{{ sessionRun.estimatedKamasWon }}</span></q-item-label>
+            <q-item-label>Kamas From Sales: <span class="highlight">{{ sessionRun.kamasEarnedSelling }}</span></q-item-label>
             <q-item-label>Earned Levels: <span class="highlight">{{ sessionRun.earnedLevels }}</span></q-item-label>
-            <q-item-label>Fights Done: <span class="highlight">{{ sessionRun.nbrFightsDone }}</span></q-item-label>
-            <q-item-label>Treasures Hunts Done: <span class="highlight">{{ sessionRun.nbrTreasuresHuntsDone }}</span></q-item-label>
             <q-item-label>Job Levels Earned: <span class="highlight">{{ formatJobLevels(sessionRun.earnedJobLevels) }}</span></q-item-label>
           </div>
           <div class="details-column">
-            <q-item-label>Estimated Kamas Won: <span class="highlight">{{ sessionRun.estimatedKamasWon }}</span></q-item-label>
-            <q-item-label>Deaths: <span class="highlight">{{ sessionRun.nbrOfDeaths }}</span></q-item-label>
+            <div class="section-title">Expenses & Activities</div>
+            <q-item-label>Kamas Spent on Taxes: <span class="highlight">{{ sessionRun.kamasSpentOnTaxes }}</span></q-item-label>
             <q-item-label>Kamas Spent on Teleporting: <span class="highlight">{{ sessionRun.kamasSpentTeleporting }}</span></q-item-label>
             <q-item-label>Number of Teleports: <span class="highlight">{{ sessionRun.numberOfTeleports }}</span></q-item-label>
-            <q-item-label>Kamas Spent on Opening Bank: <span class="highlight">{{ sessionRun.kamasSpentOpeningBank }}</span></q-item-label>
+            <q-item-label>Kamas Spent on Bank: <span class="highlight">{{ sessionRun.kamasSpentOpeningBank }}</span></q-item-label>
+          </div>
+          <div class="details-column">
+            <div class="section-title">Progress & Statistics</div>
+            <q-item-label>Fights Done: <span class="highlight">{{ sessionRun.nbrFightsDone }}</span></q-item-label>
+            <q-item-label>Treasures Hunts Done: <span class="highlight">{{ sessionRun.nbrTreasuresHuntsDone }}</span></q-item-label>
+            <q-item-label>Deaths: <span class="highlight">{{ sessionRun.nbrOfDeaths }}</span></q-item-label>
           </div>
         </div>
       </q-card-section>
@@ -61,10 +73,7 @@
 
     <!-- Interactive Graphs -->
     <q-card v-if="!isSessionLoading && !isSessionError">
-      <q-card-section>
-        <q-item-label class="text-h6">Progress Over Time</q-item-label>
-        <ProgressChart :sessionRunId="sessionRunId" />
-      </q-card-section>
+      <ProgressChart :sessionRunId="sessionRunId" />
     </q-card>
   </div>
 </template>
