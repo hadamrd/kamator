@@ -1,164 +1,315 @@
 import { defineStore } from "pinia";
 import { Notify } from "quasar";
-import { ref } from "vue";
+import { ref, markRaw } from "vue";
 import sessionRunsApiInstance from "src/api/sessionRuns";
 
-const NotifiableEvents = {
-  PlayerLeveledUp: "PlayerLeveledUp",
-  JobLevelUp: "JobLevelUp",
+// Constants for consistent usage
+const STORAGE_KEY = 'websocket_stats_history';
+const MAX_HISTORY_AGE_HOURS = 24;
+const RETRY_DELAY = 2000;
+const NOTIFY_TIMEOUT = 1000;
+const MAX_RETRIES = 100;
+
+const EVENTS = {
+  PLAYER_LEVEL_UP: "PlayerLeveledUp",
+  JOB_LEVEL_UP: "JobLevelUp"
+};
+
+const NOTIFY_TYPES = {
+  STATUS: "status_change",
+  STATS: "stats_update"
+};
+
+// Storage utilities
+const storage = {
+  save(data) {
+    try {
+      const serialized = JSON.stringify(data);
+      localStorage.setItem(STORAGE_KEY, serialized);
+      return true;
+    } catch (error) {
+      console.error('Failed to save stats history:', error);
+      return false;
+    }
+  },
+
+  load() {
+    try {
+      const serializedData = localStorage.getItem(STORAGE_KEY);
+      console.log('Raw data from localStorage:', serializedData);
+
+      if (!serializedData) {
+        console.log('No data found in localStorage');
+        return {};
+      }
+
+      const parsedData = JSON.parse(serializedData);
+      console.log('Parsed data from localStorage:', parsedData);
+      return parsedData;
+    } catch (error) {
+      console.error('Failed to load stats history:', error);
+      return {};
+    }
+  },
+
+  removeOldData(data) {
+    const cutoffTime = Date.now() - (MAX_HISTORY_AGE_HOURS * 60 * 60 * 1000);
+    const cleaned = {};
+
+    Object.entries(data).forEach(([sessionId, sessionData]) => {
+      if (sessionData?.timestamps?.length > 0) {
+        const lastTimestamp = new Date(sessionData.timestamps[sessionData.timestamps.length - 1]).getTime();
+        if (lastTimestamp > cutoffTime) {
+          cleaned[sessionId] = sessionData;
+        }
+      }
+    });
+
+    return cleaned;
+  }
 };
 
 export const useWebSocketStore = defineStore("webSocketStore", {
-  state: () => ({
-    ws: null,
-    notifications: [],
-    retryCount: 0,
-    maxRetries: 100,
-    notifyEndpoint: import.meta.env.VITE_NOTIFY_ENDPOINT,
-    retryDelay: 2000,
-    statusNotifyType: "status_change",
-    statsNotifyType: "stats_update",
-    notifyTimeout: 1000,
-    readyState: ref(WebSocket.CLOSED),
-    statsHistory: {},
-  }),
+  state: () => {
+    // Load stored data during state initialization
+    console.log('Initializing store state...');
+    let initialState = {
+      socket: null,
+      readyState: ref(WebSocket.CLOSED),
+      statsHistory: ref({}),
+      notifications: [],
+      retryCount: 0,
+      notifyEndpoint: import.meta.env.VITE_NOTIFY_ENDPOINT
+    };
+
+    try {
+      // Load and clean the stored data
+      const savedData = storage.load();
+      console.log('Loaded initial data:', savedData);
+      const cleanedData = storage.removeOldData(savedData);
+      console.log('Cleaned initial data:', cleanedData);
+      initialState.statsHistory = ref(cleanedData);
+    } catch (error) {
+      console.error('Failed to load initial state:', error);
+    }
+
+    return initialState;
+  },
+
   getters: {
     isConnecting: (state) => state.readyState === WebSocket.CONNECTING,
-    isOpen: (state) => state.readyState === WebSocket.OPEN,
-  },
-  actions: {
-    getNotifyMessage(eventId, characterName) {
-      switch (eventId) {
-        case NotifiableEvents.PlayerLeveledUp:
-          return `${characterName} has leveled up!`;
-        case NotifiableEvents.JobLevelUp:
-          return `${characterName} job leveled up!`;
-        default:
-          return "Unknown event.";
-      }
-    },
-    initializeWebSocket() {
-      if (this.isConnecting) {
-        console.log("WebSocket is already initializing...");
-        return;
-      }
-      console.log("Initializing WebSocket...");
-      this.readyState = WebSocket.CONNECTING;
-      this.connectWebSocket();
-    },
-    connectWebSocket() {
-      if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-        console.log("WebSocket is already connected.");
-        return;
-      }
-      if (this.retryCount >= this.maxRetries) {
-        console.error("Maximum WebSocket reconnection attempts reached.");
-        return;
-      }
-      this.ws = new WebSocket(this.notifyEndpoint);
-      this.ws.onopen = this.handleWebSocketConnect;
-      this.ws.onmessage = this.handleMessage;
-      this.ws.onclose = this.handleWebSocketClose;
-      this.ws.onerror = this.handleWebSocketError;
-      this.retryCount++;
-    },
-    handleWebSocketConnect() {
-      this.readyState = WebSocket.OPEN;
-      Notify.create({
-        type: "positive",
-        message: "WebSocket connection established successfully!",
-        timeout: this.notifyTimeout,
-      });
-      console.log("WebSocket connected.");
-      this.resetRetryCount();
-    },
-    handleMessage(event) {
-      const notifyData = JSON.parse(event.data);
-      const message = JSON.parse(notifyData.message);
-
-      if (message.type === this.statusNotifyType) {
-        sessionRunsApiInstance.updateCacheOnUpdate(message.session_run_id, {
-          status: message.new_status,
-        });
-      } else if (message.type === this.statsNotifyType) {
-        this.updateStatsHistory(message.session_run_id, message.player_stats);
-        sessionRunsApiInstance.updateCacheOnUpdate(
-          message.session_run_id,
-          message.player_stats
-        );
-        if (message.event_id in NotifiableEvents) {
-          this.notifications.push(message);
-          this.showNotification(message);
-        }
-      } else {
-        console.warn("Unknown notification type received:", message.type);
-      }
-    },
-    handleWebSocketClose(event) {
-      this.readyState = WebSocket.CLOSED;
-      console.log("WebSocket closed!", event.code, event.reason);
-      setTimeout(this.connectWebSocket, this.retryDelay);
-    },
-    handleWebSocketError(error) {
-      this.readyState = WebSocket.CLOSED;
-      console.error("WebSocket Error:", error);
-      Notify.create({
-        type: "negative",
-        message: "WebSocket encountered an error: " + error.message,
-        timeout: 500,
-      });
-    },
-    closeWebSocket() {
-      if (this.ws) {
-        this.ws.close(1000, "Closure initiated by client");
-        this.ws = null;
-        this.resetRetryCount();
-      }
-    },
-    sendWebSocketMessage(message) {
-      if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-        this.ws.send(JSON.stringify(message));
-      } else {
-        throw new Error("Can't send message because the socket is closed");
-      }
-    },
-    clearNotifications() {
-      this.notifications = [];
-    },
-    resetRetryCount() {
-      this.retryCount = 0;
-    },
-    showNotification(notifyData) {
-      let message = "Unknown notification message.";
-      if (notifyData.event_id === NotifiableEvents.PlayerLeveledUp) {
-        message = `${notifyData.character_name} has leveled up!`;
-      } else if (notifyData.event_id === NotifiableEvents.JobLevelUp) {
-        message = `${notifyData.character_name} job leveled up!`;
-      }
-      Notify.create({
-        type: "info",
-        message: message,
-        timeout: this.notifyTimeout,
-      });
-    },
-    updateStatsHistory(sessionRunId, playerStats) {
-      if (!this.statsHistory[sessionRunId]) {
-        this.statsHistory[sessionRunId] = {
+    isConnected: (state) => state.readyState === WebSocket.OPEN,
+    getSessionStats: (state) => (sessionId) => {
+      const stats = state.statsHistory[sessionId];
+      if (!stats) {
+        return {
           earnedKamas: [],
-          nbrFightsDone: [],
+          estimatedKamasWon: [],
           timestamps: [],
-          nbrTreasuresHuntsDone: [],
-          estimatedKamasWon: []
+          nbrFightsDone: [],
+          nbrTreasuresHuntsDone: []
         };
       }
-      const history = this.statsHistory[sessionRunId];
-
-      // Add check to avoid pushing undefined values
-      if (playerStats.earnedKamas) {
-        history.timestamps.push(new Date());
-        history.earnedKamas.push(playerStats.earnedKamas);
-      }
-      console.log('Updated history:', history);
-    },
+      return stats;
+    }
   },
+
+  actions: {
+    initializeStore() {
+      console.log('InitializeStore called');
+
+      // Initialize WebSocket
+      this.initializeWebSocket();
+
+      // Set up periodic cleanup
+      setInterval(() => {
+        this.cleanupOldData();
+      }, 60 * 60 * 1000); // Check every hour
+    },
+
+    initializeWebSocket() {
+      if (this.isConnecting || this.socket?.readyState === WebSocket.OPEN) {
+        return;
+      }
+
+      this.readyState = WebSocket.CONNECTING;
+
+      try {
+        this.socket = markRaw(new WebSocket(this.notifyEndpoint));
+        this.setupSocketHandlers();
+      } catch (error) {
+        console.error('WebSocket initialization failed:', error);
+        this.handleConnectionError();
+      }
+    },
+
+    setupSocketHandlers() {
+      if (!this.socket) return;
+
+      this.socket.onopen = () => {
+        this.readyState = WebSocket.OPEN;
+        this.retryCount = 0;
+        Notify.create({
+          type: "positive",
+          message: "Connection established",
+          timeout: NOTIFY_TIMEOUT
+        });
+      };
+
+      this.socket.onmessage = this.handleWebSocketMessage;
+      this.socket.onclose = this.handleWebSocketClose;
+      this.socket.onerror = this.handleWebSocketError;
+    },
+
+    handleWebSocketMessage(event) {
+      try {
+        const wrapper = JSON.parse(event.data);
+        const message = JSON.parse(wrapper.message);
+
+        switch (message.type) {
+          case NOTIFY_TYPES.STATUS:
+            this.handleStatusUpdate(message);
+            break;
+          case NOTIFY_TYPES.STATS:
+            this.handleStatsUpdate(message);
+            break;
+        }
+      } catch (error) {
+        console.error('Message handling failed:', error);
+      }
+    },
+
+    handleStatusUpdate(message) {
+      sessionRunsApiInstance.updateCacheOnUpdate(
+        message.session_run_id,
+        { status: message.new_status }
+      );
+    },
+
+    handleStatsUpdate(message) {
+      const { session_run_id, player_stats, event_id } = message;
+
+      // Update stats history
+      this.updateSessionStats(session_run_id, player_stats);
+
+      // Update session cache
+      sessionRunsApiInstance.updateCacheOnUpdate(session_run_id, player_stats);
+
+      // Handle notifications
+      if (event_id in EVENTS) {
+        this.handleNotification(message);
+      }
+    },
+
+    updateSessionStats(sessionId, newStats) {
+      if (!newStats || (!newStats.earnedKamas && !newStats.estimatedKamasWon)) {
+        return;
+      }
+
+      const currentStats = this.statsHistory[sessionId] || {
+        earnedKamas: [],
+        estimatedKamasWon: [],
+        timestamps: [],
+        nbrFightsDone: [],
+        nbrTreasuresHuntsDone: []
+      };
+
+      const timestamp = new Date().toISOString();
+      const lastIndex = currentStats.timestamps.length - 1;
+
+      const lastValues = {
+        earnedKamas: currentStats.earnedKamas[lastIndex] || 0,
+        estimatedKamasWon: currentStats.estimatedKamasWon[lastIndex] || 0,
+        nbrFightsDone: currentStats.nbrFightsDone[lastIndex] || 0,
+        nbrTreasuresHuntsDone: currentStats.nbrTreasuresHuntsDone[lastIndex] || 0
+      };
+
+      const updatedStats = {
+        ...this.statsHistory,
+        [sessionId]: {
+          timestamps: [...currentStats.timestamps, timestamp],
+          earnedKamas: [...currentStats.earnedKamas, newStats.earnedKamas ?? lastValues.earnedKamas],
+          estimatedKamasWon: [...currentStats.estimatedKamasWon, newStats.estimatedKamasWon ?? lastValues.estimatedKamasWon],
+          nbrFightsDone: [...currentStats.nbrFightsDone, newStats.nbrFightsDone ?? lastValues.nbrFightsDone],
+          nbrTreasuresHuntsDone: [...currentStats.nbrTreasuresHuntsDone, newStats.nbrTreasuresHuntsDone ?? lastValues.nbrTreasuresHuntsDone]
+        }
+      };
+
+      this.statsHistory = updatedStats;
+      console.log("history updated")
+      storage.save(updatedStats);
+    },
+
+    handleWebSocketClose() {
+      this.readyState = WebSocket.CLOSED;
+      this.retryConnection();
+    },
+
+    handleWebSocketError(error) {
+      console.error('WebSocket error:', error);
+      this.handleConnectionError();
+    },
+
+    handleConnectionError() {
+      this.readyState = WebSocket.CLOSED;
+      Notify.create({
+        type: "negative",
+        message: "Connection error occurred",
+        timeout: NOTIFY_TIMEOUT
+      });
+      this.retryConnection();
+    },
+
+    retryConnection() {
+      if (this.retryCount >= MAX_RETRIES) {
+        console.error("Maximum retry attempts reached");
+        return;
+      }
+
+      this.retryCount++;
+      setTimeout(() => this.initializeWebSocket(), RETRY_DELAY);
+    },
+
+    handleNotification(message) {
+      this.notifications.push(message);
+
+      const messages = {
+        [EVENTS.PLAYER_LEVEL_UP]: `${message.character_name} has leveled up!`,
+        [EVENTS.JOB_LEVEL_UP]: `${message.character_name} job leveled up!`
+      };
+
+      Notify.create({
+        type: "info",
+        message: messages[message.event_id] || "Unknown event",
+        timeout: NOTIFY_TIMEOUT
+      });
+    },
+
+    cleanupOldData() {
+      const cleanedData = storage.removeOldData(this.statsHistory.value);
+      this.statsHistory = cleanedData;
+      storage.save(cleanedData);
+    },
+
+    clearSessionData(sessionId) {
+      const newHistory = { ...this.statsHistory.value };
+      delete newHistory[sessionId];
+      this.statsHistory = newHistory;
+      storage.save(newHistory);
+    },
+
+    clearAllData() {
+      this.statsHistory = {};
+      storage.save({});
+      this.notifications = [];
+    },
+
+    disconnect() {
+      if (this.socket) {
+        this.socket.close(1000, "Intentional disconnect");
+        this.socket = null;
+        this.retryCount = 0;
+      }
+    }
+  }
 });

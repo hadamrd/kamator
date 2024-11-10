@@ -117,7 +117,6 @@ export default {
   setup() {
     const wsstore = useWebSocketStore();
     const globalStore = useGlobalStore();
-    wsstore.initializeWebSocket();
 
     return {
       wsstore,
@@ -127,10 +126,10 @@ export default {
     };
   },
   async created() {
-    this.wsstore.initializeWebSocket();
+    this.wsstore.initializeStore();
   },
   unmounted() {
-    this.wsstore.closeWebSocket();
+    this.wsstore.disconnect();
   },
 };
 </script>
