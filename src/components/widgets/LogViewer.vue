@@ -1,29 +1,28 @@
 <template>
   <q-card class="log-viewer-card">
     <q-card-section class="log-header">
-      <h3 class="log-title">Logs of the account {{ botName }}</h3>
-      <div class="log-actions">
-        <q-btn color="primary" class="log-action-btn" @click="clearLogs">Clear Logs</q-btn>
-        <q-btn color="warning" class="log-action-btn" @click="toggleSelectMode">
-          {{ selectMode ? "Exit Select Mode" : "Select Mode" }}
-        </q-btn>
-        <q-btn color="negative" class="log-action-btn" @click="quit">Quit</q-btn>
+      <div class="header-content">
+        <div class="left-section">
+          <div class="status-indicator"></div>
+          <h3 class="log-title">{{ botName }} Logs</h3>
+        </div>
+        <div class="log-actions">
+          <q-btn flat class="action-btn" icon="delete" @click="clearLogs">
+            <q-tooltip>Clear Logs</q-tooltip>
+          </q-btn>
+          <q-btn flat class="action-btn" :icon="selectMode ? 'cancel' : 'content_copy'" @click="toggleSelectMode">
+            <q-tooltip>{{ selectMode ? 'Exit Select Mode' : 'Select Mode' }}</q-tooltip>
+          </q-btn>
+          <q-btn flat class="action-btn" icon="close" @click="quit">
+            <q-tooltip>Close</q-tooltip>
+          </q-btn>
+        </div>
       </div>
     </q-card-section>
-    <q-card-section>
-      <div
-        class="log-container"
-        ref="logContainer"
-        @scroll="handleScroll"
-        @mousedown="stopAutoScroll"
-        @mouseup="resumeAutoScroll"
-      >
-        <div
-          v-for="(log, index) in logs"
-          :key="index"
-          :class="['log-entry', { 'select-mode': selectMode }]"
-          v-html="log"
-        ></div>
+
+    <q-card-section class="log-section">
+      <div class="log-container" ref="logContainer" @scroll="handleScroll" @mousedown="stopAutoScroll" @mouseup="resumeAutoScroll">
+        <div v-for="(log, index) in logs" :key="index" :class="['log-entry', { 'select-mode': selectMode }]" v-html="log"></div>
       </div>
     </q-card-section>
   </q-card>
@@ -127,97 +126,179 @@ export default {
 };
 </script>
 
-<style scoped>
-@import url("https://fonts.googleapis.com/css2?family=Cascadia+Code:wght@400&display=swap");
+<style>
+/* These styles should be outside scoped to affect v-html content */
+.log-entry span {
+  font-family: 'JetBrains Mono', monospace !important;
+}
 
+.log-entry span[style*="color: #888"] {
+  color: #a9b1d6 !important;
+}
+
+.log-entry pre {
+  margin: 0 !important;
+  padding: 0 !important;
+  line-height: 1.15 !important;  /* Made slightly tighter */
+  font-size: 0.85rem !important;
+  font-family: 'JetBrains Mono', monospace !important;
+}
+
+/* Scoped styles remain the same */
 .log-viewer-card {
+  background: #1a1b26;
+  border: 1px solid #24283b;
+  border-radius: 8px;
+  overflow: hidden;
+  height: 100vh;
   display: flex;
   flex-direction: column;
-  border: 2px solid #268bd2;
-  /* Solarized Blue border */
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  /* Subtle shadow */
+}
+
+/* Rest of your existing styles remain unchanged... */
+</style>
+
+<style scoped>
+/* Non-scoped styles for v-html content */
+.log-entry span {
+  color: #c0caf5 !important;
+}
+
+.log-entry span[style*="color: #888"] {
+  color: #a9b1d6 !important;
+}
+
+.log-entry pre {
+  margin: 0 !important;
+  line-height: 1.2 !important;
+  font-size: 0.85rem !important;
+}
+/* Modern Dark Theme */
+.log-viewer-card {
+  background: #1a1b26;
+  border: 1px solid #24283b;
+  border-radius: 8px;
+  overflow: hidden;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
 .log-header {
+  background: #24283b;
+  padding: 8px 16px;
+  border-bottom: 1px solid #414868;
+  min-height: 48px;
+}
+
+.header-content {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background-color: #2aa198;
-  /* Solarized Cyan background */
-  color: #fdf6e3;
-  /* Solarized Light foreground */
-  padding: 10px;
-  border-radius: 4px 4px 0 0;
-  border-bottom: 2px solid #268bd2;
-  /* Solarized Blue border */
+}
+
+.left-section {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.status-indicator {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #9ece6a;
+  box-shadow: 0 0 8px #9ece6a80;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.5; }
+  100% { opacity: 1; }
 }
 
 .log-title {
-  font-size: 1.2rem;
-  /* Smaller header text */
+  color: #c0caf5;
+  font-size: 1rem;
+  font-weight: 500;
   margin: 0;
+  font-family: 'JetBrains Mono', monospace;
 }
 
 .log-actions {
   display: flex;
-  gap: 10px;
+  gap: 4px;
 }
 
-.log-action-btn {
-  padding: 5px 10px;
+.action-btn {
+  color: #7aa2f7;
+  font-size: 1.1rem;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  min-height: 32px;
+}
+
+.action-btn:hover {
+  background: #414868;
+  color: #c0caf5;
+}
+
+.log-section {
+  flex: 1;
+  padding: 0;
+  background: #1a1b26;
 }
 
 .log-container {
-  flex-grow: 1;
+  max-height: calc(100Svh - 100px);
   overflow-y: auto;
-  max-height: calc(100svh - 170px);
-  /* Restrict the maximum height of the log container */
-  background-color: #fdf6e3;
-  /* Solarized Light background */
-  color: #657b83;
-  /* Solarized Light text color */
-  padding: 5px;
-  /* Reduce padding */
-  font-family: "Cascadia Code", Courier, monospace;
-  /* Use Cascadia Code font */
-  font-size: 0.89rem;
-  /* Font size */
-  line-height: 1;
-  /* Line height */
-  font-weight: 550;
-  /* Normal font weight */
+  padding: 8px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.85rem;
+  line-height: 1.2;
+  color: #c0caf5;
+}
+
+.log-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.log-container::-webkit-scrollbar-track {
+  background: #1a1b26;
+}
+
+.log-container::-webkit-scrollbar-thumb {
+  background: #414868;
+  border-radius: 3px;
+}
+
+.log-container::-webkit-scrollbar-thumb:hover {
+  background: #565f89;
 }
 
 .log-entry {
-  padding: 0;
-  /* Remove padding */
   margin: 0;
-  /* Remove margin */
-  transition: background-color 0.3s;
+  padding: 1px 6px;
+  border-radius: 2px;
+  transition: background-color 0.2s ease;
+  color: #c0caf5;
 }
 
 .log-entry:hover {
-  background-color: #eee8d5;
-  /* Solarized Light highlight */
+  background: #24283b;
 }
 
 .log-entry.select-mode {
-  background-color: #eee8d5;
-  /* Highlight in select mode */
+  background: #24283b;
   cursor: text;
-  /* Indicate selectable text */
 }
 
-.q-btn {
-  background-color: #cb4b16 !important;
-  /* Solarized Orange */
-  color: #fdf6e3 !important;
-  /* Solarized Light foreground */
-}
-
-.q-btn:hover {
-  background-color: #d33682 !important;
-  /* Solarized Magenta */
+.log-entry pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  color: inherit;
 }
 </style>
