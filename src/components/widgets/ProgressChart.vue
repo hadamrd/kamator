@@ -168,8 +168,8 @@ export default {
       const lastIndex = stats.timestamps.length - 1;
       const runTime = calculateRunTime(sessionRun.value);
       const runTimeHours = runTime / (1000 * 60 * 60); // Convert to hours for rate calculation
-
-      const totalKamas = (stats.earnedKamas[lastIndex] || 0) + (stats.estimatedKamasWon[lastIndex] || 0);
+      //
+      const totalKamas = (stats.earnedKamas[lastIndex] || 0) + (stats.estimatedKamasWon[lastIndex] || 0) + (stats.kamasSpentOnTaxes || 0);
 
       return {
         totalEarned: totalKamas,
