@@ -64,7 +64,7 @@
           <div class="card-label">Total Earned</div>
         </div>
         <div class="summary-card">
-          <div class="card-value">{{ formatNumber(statsSummary.hourlyRate) }}/h</div>
+          <div class="card-value">{{ formatNumber(statsSummary.hourlyRate) }}</div>
           <div class="card-label">Kamas/Hour</div>
         </div>
         <div class="summary-card">
