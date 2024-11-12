@@ -32,7 +32,8 @@
                 color="negative"
                 label="Clear History"
                 icon="delete"
-                @click="sessionRunStore.clearHistory()"
+                :loading="isClearingHistory"
+                @click="confirmClearHistory"
               />
             </div>
           </div>
@@ -88,8 +89,14 @@
             <q-td :props="props" class="text-right">
               <div class="row items-center justify-end">
                 <q-icon
-                  :name="props.row.earnedKamas < 0 ? 'trending_down' : 'trending_up'"
-                  :class="props.row.earnedKamas < 0 ? 'text-negative' : 'text-positive'"
+                  :name="
+                    props.row.earnedKamas < 0 ? 'trending_down' : 'trending_up'
+                  "
+                  :class="
+                    props.row.earnedKamas < 0
+                      ? 'text-negative'
+                      : 'text-positive'
+                  "
                   size="xs"
                   class="q-mr-sm"
                 />
@@ -173,12 +180,57 @@
       <q-card>
         <q-card-section class="row items-center">
           <q-avatar icon="warning" color="warning" text-color="white" />
-          <span class="q-ml-sm">Are you sure you want to delete this session?</span>
+          <span class="q-ml-sm"
+            >Are you sure you want to delete this session?</span
+          >
         </q-card-section>
 
         <q-card-actions align="right">
           <q-btn flat label="Cancel" color="primary" v-close-popup />
-          <q-btn flat label="Delete" color="negative" @click="deleteSessionRun" v-close-popup />
+          <q-btn
+            flat
+            label="Delete"
+            color="negative"
+            @click="deleteSessionRun"
+            v-close-popup
+          />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
+    <!-- Add Clear History confirmation dialog -->
+    <q-dialog v-model="clearHistoryDialog">
+      <q-card>
+        <q-card-section class="row items-center">
+          <q-avatar icon="warning" color="warning" text-color="white" />
+          <span class="q-ml-sm">
+            Are you sure you want to clear all session history? This action
+            cannot be undone.
+          </span>
+        </q-card-section>
+
+        <q-card-actions align="right">
+          <q-btn flat label="Cancel" color="primary" v-close-popup />
+          <q-btn
+            flat
+            label="Clear History"
+            color="negative"
+            :loading="isClearingHistory"
+            @click="handleClearHistory"
+          />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
+    <!-- Error handling for clear history -->
+    <q-dialog v-model="isClearHistoryError">
+      <q-card>
+        <q-card-section>
+          <div class="text-h6">Error</div>
+          <p class="text-negative">
+            Failed to clear history: {{ clearHistoryError?.message }}
+          </p>
+        </q-card-section>
+        <q-card-actions align="right">
+          <q-btn flat label="Close" color="primary" v-close-popup />
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -202,8 +254,32 @@ export default {
       error: sessionRunsError,
     } = sessionRunsApiInstance.useGetItems();
 
+    const {
+      mutate: clearHistory,
+      isLoading: isClearingHistory,
+      isError: isClearHistoryError,
+      error: clearHistoryError,
+    } = sessionRunsApiInstance.useClearHistory();
+
+    // Add confirmation dialog state
+    const clearHistoryDialog = ref(false);
+
+    const confirmClearHistory = () => {
+      clearHistoryDialog.value = true;
+    };
+
+    const handleClearHistory = async () => {
+      try {
+        await clearHistory();
+        // Close dialog after successful clear
+        clearHistoryDialog.value = false;
+      } catch (error) {
+        console.error("Failed to clear history:", error);
+      }
+    };
+
     const { mutate: deleteSessionRunMutation, isLoading: isDeleting } =
-    sessionRunsApiInstance.useDeleteItem();
+      sessionRunsApiInstance.useDeleteItem();
 
     const showTerminated = ref(false);
     const searchTerm = ref("");
@@ -214,52 +290,52 @@ export default {
       {
         name: "runTime",
         label: "Total Run Time",
-        field: row => calculateRunTime(row.startTime, row.endTime),
+        field: (row) => calculateRunTime(row.startTime, row.endTime),
         sortable: true,
-        align: 'left'
+        align: "left",
       },
       {
         name: "status",
         label: "Status",
         field: "status",
         sortable: true,
-        align: 'center'
+        align: "center",
       },
       {
         name: "earnedKamas",
         label: "Earned Net Kamas",
         field: "earnedKamas",
         sortable: true,
-        align: 'right'
+        align: "right",
       },
       {
         name: "estimatedKamasWon",
         label: "Daily projection (kamas/d)",
         field: "estimatedKamasWon",
         sortable: true,
-        align: 'right'
+        align: "right",
       },
       {
         name: "earnedLevels",
         label: "Earned Levels",
         field: "earnedLevels",
         sortable: true,
-        align: 'right'
+        align: "right",
       },
       {
         name: "currentLevel",
         label: "Current Level",
         field: "currentLevel",
         sortable: true,
-        align: 'right'
+        align: "right",
       },
       {
         name: "actions",
         label: "Actions",
         field: "id",
         sortable: false,
-        align: 'center'
-      }
+        align: "center",
+      },
     ];
 
     const pagination = ref({
@@ -281,7 +357,14 @@ export default {
       deleteDialog,
       selectedSession,
       deleteSessionRunMutation,
-      isDeleting
+      isDeleting,
+      clearHistory,
+      isClearingHistory,
+      isClearHistoryError,
+      clearHistoryError,
+      clearHistoryDialog,
+      confirmClearHistory,
+      handleClearHistory,
     };
   },
 
@@ -299,31 +382,31 @@ export default {
 
     getStatusColor(status) {
       const colors = {
-        [SessionStatusEnum.RUNNING]: 'positive',
-        [SessionStatusEnum.FIGHTING]: 'orange',
-        [SessionStatusEnum.ROLEPLAYING]: 'info',
-        [SessionStatusEnum.CRASHED]: 'negative',
-        [SessionStatusEnum.TERMINATED]: 'negative',
-        [SessionStatusEnum.DISCONNECTED]: 'warning',
-        [SessionStatusEnum.AUTHENTICATING]: 'grey',
-        [SessionStatusEnum.LOADING_MAP]: 'blue-grey',
-        [SessionStatusEnum.PROCESSING_MAP]: 'blue-grey',
-        [SessionStatusEnum.OUT_OF_ROLEPLAY]: 'purple',
-        [SessionStatusEnum.IDLE]: 'grey',
-        [SessionStatusEnum.BANNED]: 'red',
-        [SessionStatusEnum.STARTING]: 'blue',
-        [SessionStatusEnum.DOWN]: 'negative'
+        [SessionStatusEnum.RUNNING]: "positive",
+        [SessionStatusEnum.FIGHTING]: "orange",
+        [SessionStatusEnum.ROLEPLAYING]: "info",
+        [SessionStatusEnum.CRASHED]: "negative",
+        [SessionStatusEnum.TERMINATED]: "negative",
+        [SessionStatusEnum.DISCONNECTED]: "warning",
+        [SessionStatusEnum.AUTHENTICATING]: "grey",
+        [SessionStatusEnum.LOADING_MAP]: "blue-grey",
+        [SessionStatusEnum.PROCESSING_MAP]: "blue-grey",
+        [SessionStatusEnum.OUT_OF_ROLEPLAY]: "purple",
+        [SessionStatusEnum.IDLE]: "grey",
+        [SessionStatusEnum.BANNED]: "red",
+        [SessionStatusEnum.STARTING]: "blue",
+        [SessionStatusEnum.DOWN]: "negative",
       };
-      return colors[status] || 'grey';
+      return colors[status] || "grey";
     },
 
     formatNumber(number) {
-      if (!number && number !== 0) return '0';
+      if (!number && number !== 0) return "0";
       return number.toLocaleString();
     },
 
     formatStatus(status) {
-      return status?.toLowerCase().replace(/_/g, ' ') ?? '';
+      return status?.toLowerCase().replace(/_/g, " ") ?? "";
     },
 
     calculateEstimatedKamas(row) {
@@ -360,10 +443,10 @@ export default {
           this.deleteDialog = false;
         } catch (error) {
           // Handle any errors if needed
-          console.error('Failed to delete session:', error);
+          console.error("Failed to delete session:", error);
         }
       }
-    }
+    },
   },
 
   computed: {
@@ -390,7 +473,7 @@ export default {
       }
 
       return filtered;
-    }
+    },
   },
 };
 </script>

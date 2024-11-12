@@ -1,7 +1,7 @@
 import BaseCrudApi from "./BaseCrudApi";
 import { api } from "src/boot/axios";
 import { queryClient } from "src/boot/vue-query";
-
+import { useMutation } from "@tanstack/vue-query";
 class SessionRunsApi extends BaseCrudApi {
   constructor() {
     super("/session-runs", "sessionRuns");
@@ -12,11 +12,23 @@ class SessionRunsApi extends BaseCrudApi {
     return response;
   }
 
+  useClearHistory() {
+    return useMutation({
+      mutationFn: () => this.clearHistory(),
+      onSuccess: () => {
+        // Invalidate and reset queries after successful clear
+        queryClient.invalidateQueries([this.cacheKey, "list"]);
+        queryClient.setQueryData([this.cacheKey, "list"], []);
+      },
+    });
+  }
+
   async clearHistory() {
     const response = await api.post(`${this.endpoint}/clear_history/`);
-    if (response.status === 200) {
-      this.clearAllCache();
+    if (response.status !== 200) {
+      throw new Error('Failed to clear history');
     }
+    return response.data;
   }
 
   async startSession(sessionId) {
