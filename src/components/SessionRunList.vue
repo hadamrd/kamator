@@ -369,11 +369,16 @@ export default {
   },
 
   methods: {
-    calculateRunTime(startTime, endTime) {
+    calculateRunTime(startTime, endTime, status) {
       if (!startTime) return "N/A";
-      if (!endTime) endTime = new Date().toISOString();
+
+      // For terminated sessions, use the endTime from the session run object
+      // For active sessions, use current time if endTime is not available
+      const end = status === SessionStatusEnum.TERMINATED || endTime
+        ? new Date(endTime)
+        : new Date();
+
       const start = new Date(startTime);
-      const end = new Date(endTime);
       const diff = end - start;
       const hours = Math.floor(diff / 3600000);
       const minutes = Math.floor((diff % 3600000) / 60000);

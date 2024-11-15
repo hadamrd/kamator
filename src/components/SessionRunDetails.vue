@@ -21,20 +21,63 @@
           <div class="col-12 col-sm-6">
             <div class="row items-center">
               <div class="relative-position">
-                <q-avatar class="q-mr-md" size="75px">
-                  <img :src="getCharacterAvatar(session)" />
+                <q-avatar class="q-mr-md character-avatar" size="75px">
+                  <img
+                    :src="getCharacterAvatar(session)"
+                    :class="{ 'sleeping-filter': sessionRun?.isSleeping }"
+                  />
+
+                  <!-- Sleeping Effects Container -->
+                  <div v-if="sessionRun?.isSleeping" class="sleeping-effects">
+                    <!-- Z's Animation -->
+                    <div class="sleeping-z-container">
+                      <q-icon
+                        name="favorite"
+                        class="z-letter z1"
+                        color="orange"
+                        size="xs"
+                      />
+                      <q-icon
+                        name="favorite"
+                        class="z-letter z2"
+                        color="orange"
+                        size="sm"
+                      />
+                      <q-icon
+                        name="favorite"
+                        class="z-letter z3"
+                        color="orange"
+                      />
+                    </div>
+
+                    <!-- Moon Icon -->
+                    <q-icon
+                      name="nights_stay"
+                      class="moon-icon"
+                      color="orange"
+                      size="sm"
+                    />
+                  </div>
+
+                  <!-- Status Indicator -->
+                  <div
+                    class="status-indicator"
+                    :class="{
+                      sleeping: sessionRun?.isSleeping,
+                      active: !sessionRun?.isSleeping,
+                    }"
+                  >
+                    <q-tooltip>
+                      <div class="row items-center q-gutter-sm">
+                        <q-icon
+                          :name="sessionRun?.isSleeping ? 'hotel' : 'person'"
+                          size="xs"
+                        />
+                        {{ sessionRun?.isSleeping ? "Sleeping" : "Active" }}
+                      </div>
+                    </q-tooltip>
+                  </div>
                 </q-avatar>
-                <div
-                  class="status-indicator"
-                  :class="{
-                    sleeping: sessionRun?.isSleeping,
-                    active: !sessionRun?.isSleeping,
-                  }"
-                >
-                  <q-tooltip>{{
-                    sessionRun?.isSleeping ? "Sleeping" : "Active"
-                  }}</q-tooltip>
-                </div>
               </div>
               <div>
                 <q-item-label class="text-h6"
@@ -91,9 +134,12 @@
                       size="sm"
                       class="q-mr-sm"
                     />
-                    <span class="text-subtitle2">Inventory Load:  {{
-                      formatPercent(sessionRun?.currentInventoryWeightPercent)
-                    }}</span>
+                    <span class="text-subtitle2"
+                      >Inventory Load:
+                      {{
+                        formatPercent(sessionRun?.currentInventoryWeightPercent)
+                      }}</span
+                    >
                   </div>
                   <q-linear-progress
                     :value="
@@ -519,5 +565,74 @@ const getInventoryProgressColor = computed(() => {
 
 .details-column:last-child {
   padding-right: 0;
+}
+
+.status-container {
+  position: absolute;
+  bottom: 2px;
+  right: 18px;
+}
+
+.status-indicator {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid white;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+.status-indicator.sleeping {
+  background: var(--q-orange);
+  animation: pulse 2s infinite;
+}
+
+.status-indicator.active {
+  background: var(--q-positive);
+}
+
+.sleeping-badge {
+  bottom: 15px;
+  right: 15px;
+  padding: 4px 8px;
+}
+
+.sleeping-icon {
+  animation: float 2s infinite ease-in-out;
+}
+
+.rotate-z {
+  animation: rotate 4s linear infinite;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 </style>
