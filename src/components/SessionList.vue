@@ -121,6 +121,14 @@
               :to="getLogViewerRoute(session)"
               @click.stop="logButtonClick"
             />
+            <q-btn
+              icon="query_stats"
+              color="info"
+              :to="getSessionStatsRoute(session)"
+              @click.stop
+            >
+              <q-tooltip>View Session Stats</q-tooltip>
+            </q-btn>
           </q-btn-group>
         </q-item-section>
       </q-item>
@@ -232,6 +240,16 @@ export default {
       return this.characters.find(
         (character) => character.id == session.character
       );
+    },
+    getSessionStatsRoute(session) {
+      const currentRun = this.getSessionCurrentRun(session.id);
+      return {
+        name: 'SessionRunDetails',
+        params: {
+          sessionRunId: currentRun?.id || 'latest',
+          sessionId: session.id
+        }
+      };
     },
     async toggleStartStop(sessionId) {
       try {
