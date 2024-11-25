@@ -7,25 +7,32 @@ const api = axios.create({
   withCredentials: true,
 });
 
-function getCookie(name) {
-  const value = `; ${document.cookie}`;
-  const parts = value.split(`; ${name}=`);
-  if (parts.length === 2) {
-    return parts.pop()?.split(';').shift() || null;
-  }
-  return null;
+// function getCookie(name) {
+//   const value = `; ${document.cookie}`;
+//   const parts = value.split(`; ${name}=`);
+//   if (parts.length === 2) {
+//     return parts.pop()?.split(';').shift() || null;
+//   }
+//   return null;
+// }
+
+// Get cookies from Electron session
+async function getCookie(name) {
+  return window.electronAPI.getCookie(name)
 }
 
 export default boot(async ({ app }) => {
   app.config.globalProperties.$axios = axios;
   app.config.globalProperties.$api = api;
 
-  api.interceptors.request.use((config) => {
+  api.interceptors.request.use(async (config) => {
     const methodsRequiringCSRF = ["post", "put", "delete"];
     if (methodsRequiringCSRF.includes(config.method?.toLowerCase() ?? "")) {
-      const csrfToken = getCookie("csrftoken");
+      const csrfToken = await window.electronAPI.getCookie("csrftoken");
       if (csrfToken) {
         config.headers["X-CSRFToken"] = csrfToken;
+      } {
+        console.log("no csrf found in cookies")
       }
     }
     return config;

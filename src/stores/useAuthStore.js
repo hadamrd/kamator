@@ -3,6 +3,7 @@ import { api } from 'src/boot/axios'
 import { Notify } from 'quasar'
 import { Loading } from 'quasar'
 import { queryClient } from 'src/boot/vue-query'
+import { useWebSocketStore } from 'src/stores/webSocketStore'
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
@@ -78,10 +79,13 @@ export const useAuthStore = defineStore('auth', {
           if (this.router.currentRoute.value.path === "/login") {
             this.router.push("/");
           }
+          useWebSocketStore().initializeStore();
         } else {
           this.error = "";
           this.loggedOut = true;
-
+          this.user = null;
+          this.sessionId = null;
+          useWebSocketStore().disconnect();
           if (this.authInterval) {
             clearInterval(this.authInterval);
           }
@@ -142,6 +146,8 @@ export const useAuthStore = defineStore('auth', {
         clearInterval(this.authInterval);
         this.authInterval = null;
       }
+
+      useWebSocketStore().disconnect();
 
       // Clear any cached data
       queryClient.clear();

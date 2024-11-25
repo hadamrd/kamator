@@ -17,7 +17,7 @@
 
         <!-- User Menu -->
         <q-btn flat round icon="account_circle" size="md" @click="toggleUserMenu">
-          <q-menu v-model="showUserMenu">
+          <q-menu>
             <q-list>
               <q-item clickable @click="goToProfile">
                 <q-item-section avatar>

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from "electron";
+import { app, BrowserWindow, ipcMain, session } from "electron";
 import path from "path";
 import os from "os";
 
@@ -126,3 +126,9 @@ ipcMain.handle("start-auth", async (event) => {
     }
   });
 });
+
+ipcMain.handle('get-cookie', async (event, name) => {
+  const cookies = await session.defaultSession.cookies.get({ name })
+  console.log(cookies)
+  return cookies[0]?.value || null
+})

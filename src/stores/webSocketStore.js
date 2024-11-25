@@ -36,7 +36,7 @@ const storage = {
   load() {
     try {
       const serializedData = localStorage.getItem(STORAGE_KEY);
-      console.log('Raw data from localStorage:', serializedData);
+      // console.log('Raw data from localStorage:', serializedData);
 
       if (!serializedData) {
         console.log('No data found in localStorage');
@@ -44,7 +44,7 @@ const storage = {
       }
 
       const parsedData = JSON.parse(serializedData);
-      console.log('Parsed data from localStorage:', parsedData);
+      // console.log('Parsed data from localStorage:', parsedData);
       return parsedData;
     } catch (error) {
       console.error('Failed to load stats history:', error);
@@ -72,22 +72,23 @@ const storage = {
 export const useWebSocketStore = defineStore("webSocketStore", {
   state: () => {
     // Load stored data during state initialization
-    console.log('Initializing store state...');
+    // console.log('Initializing store state...');
     let initialState = {
-      socket: null,
+      _socket: null,
       readyState: ref(WebSocket.CLOSED),
       statsHistory: ref({}),
       notifications: [],
       retryCount: 0,
-      notifyEndpoint: import.meta.env.VITE_NOTIFY_ENDPOINT
+      notifyEndpoint: import.meta.env.VITE_NOTIFY_ENDPOINT,
+      _isDisconnecting: false
     };
 
     try {
       // Load and clean the stored data
       const savedData = storage.load();
-      console.log('Loaded initial data:', savedData);
+      // console.log('Loaded initial data:', savedData);
       const cleanedData = storage.removeOldData(savedData);
-      console.log('Cleaned initial data:', cleanedData);
+      // console.log('Cleaned initial data:', cleanedData);
       initialState.statsHistory = ref(cleanedData);
     } catch (error) {
       console.error('Failed to load initial state:', error);
@@ -128,14 +129,14 @@ export const useWebSocketStore = defineStore("webSocketStore", {
     },
 
     initializeWebSocket() {
-      if (this.isConnecting || this.socket?.readyState === WebSocket.OPEN) {
+      if (this.isConnecting || this._socket?.readyState === WebSocket.OPEN) {
         return;
       }
 
       this.readyState = WebSocket.CONNECTING;
 
       try {
-        this.socket = markRaw(new WebSocket(this.notifyEndpoint));
+        this._socket = markRaw(new WebSocket(this.notifyEndpoint));
         this.setupSocketHandlers();
       } catch (error) {
         console.error('WebSocket initialization failed:', error);
@@ -144,9 +145,9 @@ export const useWebSocketStore = defineStore("webSocketStore", {
     },
 
     setupSocketHandlers() {
-      if (!this.socket) return;
+      if (!this._socket) return;
 
-      this.socket.onopen = () => {
+      this._socket.onopen = () => {
         this.readyState = WebSocket.OPEN;
         this.retryCount = 0;
         Notify.create({
@@ -156,12 +157,14 @@ export const useWebSocketStore = defineStore("webSocketStore", {
         });
       };
 
-      this.socket.onmessage = this.handleWebSocketMessage;
-      this.socket.onclose = this.handleWebSocketClose;
-      this.socket.onerror = this.handleWebSocketError;
+      this._socket.onmessage = this.handleWebSocketMessage;
+      this._socket.onclose = this.handleWebSocketClose;
+      this._socket.onerror = this.handleWebSocketError;
     },
 
     handleWebSocketMessage(event) {
+      if (this._isDisconnecting) return;
+
       try {
         const wrapper = JSON.parse(event.data);
         const message = JSON.parse(wrapper.message);
@@ -242,7 +245,16 @@ export const useWebSocketStore = defineStore("webSocketStore", {
 
     handleWebSocketClose() {
       this.readyState = WebSocket.CLOSED;
-      this.retryConnection();
+      if (!this._isDisconnecting) {
+        this.retryConnection();
+      } else{
+        this._isDisconnecting = false;
+        Notify.create({
+          type: "negative",
+          message: "Websocket disconnected",
+          timeout: NOTIFY_TIMEOUT
+        });
+      }
     },
 
     handleWebSocketError(error) {
@@ -305,10 +317,14 @@ export const useWebSocketStore = defineStore("webSocketStore", {
     },
 
     disconnect() {
-      if (this.socket) {
-        this.socket.close(1000, "Intentional disconnect");
-        this.socket = null;
+      this._isDisconnecting = true;
+      console.log("Disconnect websocket called");
+      if (this._socket) {
+        this._socket.close(1000, "Intentional disconnect");
+        this._socket = null;
         this.retryCount = 0;
+      } else {
+        console.log("Disconnect websocket called, but socket is null");
       }
     }
   }
