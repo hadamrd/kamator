@@ -51,7 +51,10 @@ function createWindow() {
   });
 }
 
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  app.setAsDefaultProtocolClient('grinder');
+  createWindow();
+});
 
 app.on("window-all-closed", () => {
   if (platform !== "darwin") {

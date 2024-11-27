@@ -1,6 +1,6 @@
 <template>
   <q-layout view="lHh Lpr lFf">
-    <q-header elevated class="glossy" v-if="authStore.isLoggedIn">
+    <q-header elevated class="glossy" v-if="authStore.user">
       <q-toolbar class="grinder-title-toolbar">
         <q-btn
           flat
@@ -44,7 +44,7 @@
       </q-toolbar>
     </q-header>
 
-    <q-drawer v-model="leftDrawerOpen" v-if="authStore.isLoggedIn" show-if-above bordered>
+    <q-drawer v-model="leftDrawerOpen" v-if="authStore.user" show-if-above bordered>
       <q-scroll-area style="height: calc(100% - 150px); margin-top: 150px">
         <q-list padding>
           <q-item-label header>Essential Links</q-item-label>
@@ -125,7 +125,7 @@
       <router-view />
     </q-page-container>
 
-    <taskbar v-if="authStore.isLoggedIn" />
+    <taskbar v-if="authStore.user" />
   </q-layout>
 </template>
 
@@ -190,13 +190,13 @@ export default {
   },
 
   async created() {
-    if (this.authStore.isLoggedIn) {
+    if (this.authStore.user) {
       this.wsstore.initializeStore()
     }
   },
 
   unmounted() {
-    if (this.authStore.isLoggedIn) {
+    if (this.authStore.user) {
       this.wsstore.disconnect()
     }
   }
