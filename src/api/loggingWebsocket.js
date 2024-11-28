@@ -38,12 +38,11 @@ const LoggingService = (() => {
         })
       );
       console.log(`Started watching logs for bot: ${botName}`);
-    } else {
-      console.error("Cannot send message because the socket is closed");
     }
   };
 
   const stopLogStream = (botName) => {
+    console.log("ws state :", ws.readyState)
     if (ws && ws.readyState === WebSocket.OPEN) {
       ws.send(
         JSON.stringify({
@@ -52,8 +51,6 @@ const LoggingService = (() => {
         })
       );
       console.log(`Stopped watching logs for bot: ${botName}`);
-    } else {
-      console.error("Cannot send message because the socket is closed");
     }
   };
 

@@ -233,7 +233,6 @@ export default {
       return { name: "LogViewer", params: { botName: accountId } };
     },
     logButtonClick() {
-      console.log("Button clicked");
     },
     getSessionCharacter(session) {
       if (!this.characters) return null;
