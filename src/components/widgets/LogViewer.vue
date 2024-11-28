@@ -6,7 +6,7 @@
           <div class="status-indicator"></div>
           <h3 class="log-title">{{ botName }} Logs</h3>
         </div>
-        <div class="log-actions">
+        <q-btn-group outline class="log-actions">
           <q-btn flat class="action-btn" icon="delete" @click="clearLogs">
             <q-tooltip>Clear Logs</q-tooltip>
           </q-btn>
@@ -16,7 +16,7 @@
           <q-btn flat class="action-btn" icon="close" @click="quit">
             <q-tooltip>Close</q-tooltip>
           </q-btn>
-        </div>
+        </q-btn-group>
       </div>
     </q-card-section>
 
@@ -29,10 +29,8 @@
 </template>
 
 <script>
-import { ref, nextTick } from "vue";
-import { Notify } from "quasar";
+import { nextTick } from "vue";
 import LoggingService from "src/api/loggingWebsocket";
-// src/main.js or src/main.ts
 import 'src/assets/css/fonts.css';
 
 export default {
@@ -59,8 +57,6 @@ export default {
         this.logs.shift();
       }
       if (this.autoScroll && !this.selectMode) {
-        // Only auto-scroll if not in select mode
-        // Scroll to bottom
         nextTick(() => {
           const container = this.$refs.logContainer;
           if (container) {
@@ -71,11 +67,6 @@ export default {
     },
     clearLogs() {
       this.logs = [];
-      console.log("Logs cleared");
-      Notify.create({
-        type: "positive",
-        message: "Logs cleared!",
-      });
     },
     quit() {
       LoggingService.stopLogStream(this.botName);
@@ -150,7 +141,6 @@ export default {
   border: 1px solid #24283b;
   border-radius: 8px;
   overflow: hidden;
-  height: 100vh;
   display: flex;
   flex-direction: column;
 }
@@ -179,14 +169,13 @@ export default {
   border: 1px solid #24283b;
   border-radius: 8px;
   overflow: hidden;
-  height: 100vh;
   display: flex;
   flex-direction: column;
 }
 
 .log-header {
   background: #24283b;
-  padding: 8px 16px;
+  padding: 0px 16px;
   border-bottom: 1px solid #414868;
   min-height: 48px;
 }
@@ -208,14 +197,6 @@ export default {
   height: 6px;
   border-radius: 50%;
   background: #9ece6a;
-  box-shadow: 0 0 8px #9ece6a80;
-  animation: pulse 2s infinite;
-}
-
-@keyframes pulse {
-  0% { opacity: 1; }
-  50% { opacity: 0.5; }
-  100% { opacity: 1; }
 }
 
 .log-title {
@@ -233,16 +214,8 @@ export default {
 
 .action-btn {
   color: #7aa2f7;
-  font-size: 1.1rem;
-  padding: 4px;
-  border-radius: 4px;
-  transition: all 0.2s ease;
-  min-height: 32px;
-}
-
-.action-btn:hover {
-  background: #414868;
-  color: #c0caf5;
+  font-size: 0.9rem;
+  padding: 6px;
 }
 
 .log-section {

@@ -2,6 +2,7 @@ import { defineStore } from "pinia";
 import { Notify } from "quasar";
 import { ref, markRaw } from "vue";
 import sessionRunsApiInstance from "src/api/sessionRuns";
+import { useAuthStore } from 'src/stores/useAuthStore'
 
 // Constants for consistent usage
 const STORAGE_KEY = 'websocket_stats_history';
@@ -17,7 +18,8 @@ const EVENTS = {
 
 const NOTIFY_TYPES = {
   STATUS: "status_change",
-  STATS: "stats_update"
+  STATS: "stats_update",
+  ERROR: "error"
 };
 
 // Storage utilities
@@ -36,7 +38,6 @@ const storage = {
   load() {
     try {
       const serializedData = localStorage.getItem(STORAGE_KEY);
-      // console.log('Raw data from localStorage:', serializedData);
 
       if (!serializedData) {
         console.log('No data found in localStorage');
@@ -44,7 +45,6 @@ const storage = {
       }
 
       const parsedData = JSON.parse(serializedData);
-      // console.log('Parsed data from localStorage:', parsedData);
       return parsedData;
     } catch (error) {
       console.error('Failed to load stats history:', error);
@@ -71,8 +71,6 @@ const storage = {
 
 export const useWebSocketStore = defineStore("webSocketStore", {
   state: () => {
-    // Load stored data during state initialization
-    // console.log('Initializing store state...');
     let initialState = {
       _socket: null,
       readyState: ref(WebSocket.CLOSED),
@@ -84,11 +82,8 @@ export const useWebSocketStore = defineStore("webSocketStore", {
     };
 
     try {
-      // Load and clean the stored data
       const savedData = storage.load();
-      // console.log('Loaded initial data:', savedData);
       const cleanedData = storage.removeOldData(savedData);
-      // console.log('Cleaned initial data:', cleanedData);
       initialState.statsHistory = ref(cleanedData);
     } catch (error) {
       console.error('Failed to load initial state:', error);
@@ -119,13 +114,12 @@ export const useWebSocketStore = defineStore("webSocketStore", {
     initializeStore() {
       console.log('InitializeStore called');
 
-      // Initialize WebSocket
       this.initializeWebSocket();
 
       // Set up periodic cleanup
       setInterval(() => {
         this.cleanupOldData();
-      }, 60 * 60 * 1000); // Check every hour
+      }, 60 * 60 * 1000);
     },
 
     initializeWebSocket() {
@@ -136,7 +130,7 @@ export const useWebSocketStore = defineStore("webSocketStore", {
       this.readyState = WebSocket.CONNECTING;
 
       try {
-        this._socket = markRaw(new WebSocket(this.notifyEndpoint));
+        this._socket = markRaw(new WebSocket(this.notifyEndpoint + `?token=${useAuthStore().token}`));
         this.setupSocketHandlers();
       } catch (error) {
         console.error('WebSocket initialization failed:', error);
@@ -150,11 +144,6 @@ export const useWebSocketStore = defineStore("webSocketStore", {
       this._socket.onopen = () => {
         this.readyState = WebSocket.OPEN;
         this.retryCount = 0;
-        Notify.create({
-          type: "positive",
-          message: "Connection established",
-          timeout: NOTIFY_TIMEOUT
-        });
       };
 
       this._socket.onmessage = this.handleWebSocketMessage;
@@ -167,6 +156,13 @@ export const useWebSocketStore = defineStore("webSocketStore", {
 
       try {
         const wrapper = JSON.parse(event.data);
+
+        if (wrapper.type == 'error') {
+          console.log(`Received websocket error from server: ${wrapper.message}`)
+          this.disconnect()
+          return
+        }
+
         const message = JSON.parse(wrapper.message);
 
         switch (message.type) {
@@ -249,11 +245,6 @@ export const useWebSocketStore = defineStore("webSocketStore", {
         this.retryConnection();
       } else{
         this._isDisconnecting = false;
-        Notify.create({
-          type: "negative",
-          message: "Websocket disconnected",
-          timeout: NOTIFY_TIMEOUT
-        });
       }
     },
 
@@ -264,11 +255,6 @@ export const useWebSocketStore = defineStore("webSocketStore", {
 
     handleConnectionError() {
       this.readyState = WebSocket.CLOSED;
-      Notify.create({
-        type: "negative",
-        message: "Connection error occurred",
-        timeout: NOTIFY_TIMEOUT
-      });
       this.retryConnection();
     },
 

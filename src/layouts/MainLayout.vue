@@ -134,7 +134,6 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from 'src/stores/useAuthStore'
 import { useGlobalStore } from 'src/stores/globalVuesStore'
-import { useWebSocketStore } from 'src/stores/webSocketStore'
 import Taskbar from 'components/Taskbar.vue'
 
 export default {
@@ -148,7 +147,6 @@ export default {
     const router = useRouter()
     const authStore = useAuthStore()
     const globalStore = useGlobalStore()
-    const wsstore = useWebSocketStore()
 
     const leftDrawerOpen = ref(false)
     const showUserMenu = ref(false)
@@ -161,7 +159,6 @@ export default {
       showUserMenu,
       authStore,
       globalStore,
-      wsstore,
       router,
       userAvatar
     }
@@ -185,19 +182,6 @@ export default {
     async logout() {
       await this.authStore.logout()
       this.showUserMenu = false
-      this.router.push('/login')
-    }
-  },
-
-  async created() {
-    if (this.authStore.user) {
-      this.wsstore.initializeStore()
-    }
-  },
-
-  unmounted() {
-    if (this.authStore.user) {
-      this.wsstore.disconnect()
     }
   }
 }
