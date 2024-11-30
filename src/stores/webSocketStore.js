@@ -284,13 +284,13 @@ export const useWebSocketStore = defineStore("webSocketStore", {
     },
 
     cleanupOldData() {
-      const cleanedData = storage.removeOldData(this.statsHistory.value);
+      const cleanedData = storage.removeOldData(this.statsHistory);
       this.statsHistory = cleanedData;
       storage.save(cleanedData);
     },
 
     clearSessionData(sessionId) {
-      const newHistory = { ...this.statsHistory.value };
+      const newHistory = { ...this.statsHistory };
       delete newHistory[sessionId];
       this.statsHistory = newHistory;
       storage.save(newHistory);
